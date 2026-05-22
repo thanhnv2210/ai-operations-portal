@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 _app_env = os.getenv("APP_ENV", "local")
 if _app_env == "local":
     load_dotenv(dotenv_path=f".env.{_app_env}", override=False)
+    load_dotenv(dotenv_path=".env", override=False)
 
 from pydantic import Field  # noqa: E402  (must come after load_dotenv)
 from pydantic_settings import BaseSettings, SettingsConfigDict  # noqa: E402
@@ -48,7 +49,7 @@ class Settings(BaseSettings):
         description="Base URL for Ollama OpenAI-compatible endpoint",
     )
     ollama_model: str = Field(
-        default="mistral",
+        default="llama3.1:8b",
         description="Ollama model to use as fallback",
     )
 

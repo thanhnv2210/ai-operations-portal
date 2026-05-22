@@ -139,3 +139,8 @@ Interactive API docs available at `http://localhost:8007/docs` (local only).
 | `OLLAMA_BASE_URL` | Ollama base URL (default: `http://localhost:11434`) |
 
 CI and UAT inject environment variables directly — no `.env` file needed in those environments.
+
+> **Note:** After updating any `.env` or `.env.local` file, restart the backend for changes to take effect:
+> ```bash
+> aiops-restart
+> ```

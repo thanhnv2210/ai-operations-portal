@@ -101,7 +101,6 @@ async def stream_response(
             async with _get_client().messages.stream(
                 model=cfg.anthropic_model,
                 max_tokens=4096,
-                thinking={"type": "adaptive"},
                 system=system,
                 messages=messages,
             ) as stream:
@@ -129,7 +128,6 @@ async def complete(
             resp = await _get_client().messages.create(
                 model=cfg.anthropic_model,
                 max_tokens=max_tokens,
-                thinking={"type": "adaptive"},
                 system=system,
                 messages=messages,
             )
