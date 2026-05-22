@@ -35,11 +35,11 @@
 - [x] Frontend: hub/service filter controls
 
 ## Phase 4: Transaction Explorer
-- [ ] API: paginated search (status, date range, service, hub, error_code)
-- [ ] API: single transaction detail
-- [ ] API: transaction audit history (`transaction_aud`)
-- [ ] Frontend: filter panel + results table
-- [ ] Frontend: transaction detail drawer with audit timeline
+- [x] API: paginated search (status, date range, service, hub, error_code)
+- [x] API: single transaction detail
+- [x] API: transaction audit history (`transaction_aud`)
+- [x] Frontend: filter panel + results table
+- [x] Frontend: transaction detail drawer with audit timeline
 
 ## Phase 5: AI Assistant + Insights Engine
 - [ ] Anthropic client (streaming, adaptive thinking, Ollama fallback)

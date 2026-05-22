@@ -59,7 +59,9 @@ def create_app() -> FastAPI:
 
     # --- Routers ---
     from app.routers.dashboard import router as dashboard_router
+    from app.routers.transactions import router as transactions_router
     app.include_router(dashboard_router)
+    app.include_router(transactions_router)
 
     @app.get("/health", tags=["ops"])
     async def health() -> dict:

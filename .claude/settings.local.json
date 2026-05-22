@@ -60,7 +60,8 @@
       "Bash(curl -s \"http://localhost:8000/api/v1/dashboard/hub-breakdown\")",
       "Bash(curl -s \"http://localhost:8000/api/v1/dashboard/status-distribution\")",
       "Bash(curl:*)",
-      "Bash(APP_ENV=local .venv/bin/python -c \"\nimport asyncio\nfrom dotenv import load_dotenv\nload_dotenv\\('.env.local'\\)\nfrom app.database import init_engines, get_keycloak_db\nfrom app.routers.dashboard import get_overview\nfrom datetime import datetime, timezone, timedelta\n\nasync def test\\(\\):\n    init_engines\\(\\)\n    async for db in get_keycloak_db\\(\\):\n        from sqlalchemy import select, func\n        from app.models.remittance import Transaction\n        result = await db.execute\\(select\\(func.count\\(\\)\\).select_from\\(Transaction\\)\\)\n        print\\('transaction count:', result.scalar\\(\\)\\)\n\nasyncio.run\\(test\\(\\)\\)\n\")"
+      "Bash(APP_ENV=local .venv/bin/python -c \"\nimport asyncio\nfrom dotenv import load_dotenv\nload_dotenv\\('.env.local'\\)\nfrom app.database import init_engines, get_keycloak_db\nfrom app.routers.dashboard import get_overview\nfrom datetime import datetime, timezone, timedelta\n\nasync def test\\(\\):\n    init_engines\\(\\)\n    async for db in get_keycloak_db\\(\\):\n        from sqlalchemy import select, func\n        from app.models.remittance import Transaction\n        result = await db.execute\\(select\\(func.count\\(\\)\\).select_from\\(Transaction\\)\\)\n        print\\('transaction count:', result.scalar\\(\\)\\)\n\nasyncio.run\\(test\\(\\)\\)\n\")",
+      "Bash(APP_ENV=local .venv/bin/python -c \":*)"
     ]
   }
 }

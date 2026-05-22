@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { FilterBar } from '@/components/FilterBar'
-import { ThemeToggle } from '@/components/ThemeToggle'
 import { HubBreakdownTable } from '@/components/HubBreakdownTable'
 import { MetricCard } from '@/components/MetricCard'
 import { StatusDistributionChart } from '@/components/StatusDistributionChart'
@@ -41,14 +40,7 @@ export function Dashboard() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Operational Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Remittance transaction analytics</p>
-          </div>
-          <ThemeToggle />
-        </div>
+        <h1 className="text-2xl font-bold text-foreground">Operational Dashboard</h1>
 
         {/* Filters */}
         <FilterBar filters={filters} onChange={setFilters} />

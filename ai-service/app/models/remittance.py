@@ -177,19 +177,25 @@ class Transaction(KeycloakBase):
 
 
 class TransactionAud(KeycloakBase):
-    """Hibernate Envers audit table — full history of every change on a transaction."""
+    """Audit table — full history of every status change on a transaction."""
 
     __tablename__ = "transaction_aud"
     __table_args__ = {"schema": "remittance"}
 
-    internal_transaction_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    rev: Mapped[int] = mapped_column(Integer, primary_key=True)
-    revtype: Mapped[int | None] = mapped_column(SmallInteger)  # 0=insert, 1=update, 2=delete
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    internal_transaction_id: Mapped[int | None] = mapped_column(BigInteger)
     audit_date: Mapped[datetime | None] = mapped_column(DateTime)
 
     status: Mapped[str | None] = mapped_column(String(50))
-    error_code: Mapped[str | None] = mapped_column(String)
     hub_status: Mapped[str | None] = mapped_column(String)
+    hub_status_id: Mapped[str | None] = mapped_column(String)
+    hub_sub_status: Mapped[str | None] = mapped_column(String)
+    hub_sub_status_id: Mapped[str | None] = mapped_column(String)
+    error_code: Mapped[str | None] = mapped_column(String)
+    error_message: Mapped[str | None] = mapped_column(Text)
     hub_error_code: Mapped[str | None] = mapped_column(String)
+    hub_error_message: Mapped[str | None] = mapped_column(Text)
     fraud_status: Mapped[str | None] = mapped_column(String(30))
-    updated_date: Mapped[datetime | None] = mapped_column(DateTime)
+    proxy_refund_status: Mapped[str | None] = mapped_column(String(20))
+    created_date: Mapped[datetime | None] = mapped_column(DateTime)
+    version: Mapped[int | None] = mapped_column(Integer)
