@@ -25,12 +25,22 @@ def _naive(dt: datetime) -> datetime:
     return dt.replace(tzinfo=None) if dt.tzinfo else dt
 
 
+_MAX_RANGE_DAYS = 90
+
+
 def _default_from() -> datetime:
-    return datetime.now(timezone.utc) - timedelta(days=90)
+    return datetime.now(timezone.utc) - timedelta(days=30)
 
 
 def _default_to() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _clamp_range(from_date: datetime, to_date: datetime) -> tuple[datetime, datetime]:
+    """Cap the query window to MAX_RANGE_DAYS to protect the production DB."""
+    if (to_date - from_date).days > _MAX_RANGE_DAYS:
+        from_date = to_date - timedelta(days=_MAX_RANGE_DAYS)
+    return from_date, to_date
 
 
 # --- Response models ---
@@ -242,6 +252,7 @@ async def search_transactions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ):
+    from_date, to_date = _clamp_range(from_date, to_date)
     base = (
         select(Transaction)
         .where(

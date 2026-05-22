@@ -140,6 +140,27 @@ Interactive API docs available at `http://localhost:8007/docs` (local only).
 
 CI and UAT inject environment variables directly — no `.env` file needed in those environments.
 
+## Connecting to Production
+
+1. **Set `APP_ENV=uat`** in your `.env` — this disables SQL echo logging and hides `/docs`/`/redoc`.
+
+2. **Use a read-only DB user** — the portal never writes to either database, so grant `SELECT` only on the required schemas.
+
+3. **Production DB load guards** (already enforced in code):
+   - Connection pool capped at **2–3 connections** per DB (vs 10 locally)
+   - All dashboard and transaction queries are **capped at a 90-day date window** — requests for wider ranges are silently trimmed
+   - Transaction search `page_size` is hard-limited to **100 rows**
+   - AI context queries run **aggregates only** (no full table scans)
+
+4. **Recommended `.env` for prod use:**
+   ```
+   APP_ENV=uat
+   ML_DB_URL=postgresql+asyncpg://<readonly_user>:<pass>@<prod-host>:<port>/ml_db
+   KEYCLOAK_DB_URL=postgresql+asyncpg://<readonly_user>:<pass>@<prod-host>:<port>/keycloak
+   ANTHROPIC_API_KEY=sk-ant-...
+   CORS_ORIGINS=["http://localhost:3007"]
+   ```
+
 > **Note:** After updating any `.env` or `.env.local` file, restart the backend for changes to take effect:
 > ```bash
 > aiops-restart

@@ -25,23 +25,29 @@ def init_engines() -> None:
 
     cfg = get_settings()
 
+    ml_pool_size = 5 if cfg.is_local else 2
     _ml_engine = create_async_engine(
         cfg.ml_db_url,
         echo=cfg.is_local,
         pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
+        pool_size=ml_pool_size,
+        max_overflow=2,
+        pool_timeout=30,
+        pool_recycle=1800,
     )
     _MlSession = async_sessionmaker(
         _ml_engine, expire_on_commit=False, class_=AsyncSession
     )
 
+    keycloak_pool_size = 10 if cfg.is_local else 3
     _keycloak_engine = create_async_engine(
         cfg.keycloak_db_url,
         echo=cfg.is_local,
         pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=20,
+        pool_size=keycloak_pool_size,
+        max_overflow=2,
+        pool_timeout=30,
+        pool_recycle=1800,
     )
     _KeycloakSession = async_sessionmaker(
         _keycloak_engine, expire_on_commit=False, class_=AsyncSession

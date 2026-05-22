@@ -29,12 +29,22 @@ DbDep = Annotated[AsyncSession, Depends(get_keycloak_db)]
 CacheDep = Annotated[ReferenceCache, Depends(get_cache)]
 
 
+_MAX_RANGE_DAYS = 90
+
+
 def _default_from() -> datetime:
     return datetime.now(timezone.utc) - timedelta(days=7)
 
 
 def _default_to() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _clamp_range(from_date: datetime, to_date: datetime) -> tuple[datetime, datetime]:
+    """Cap the query window to MAX_RANGE_DAYS to protect the production DB."""
+    if (to_date - from_date).days > _MAX_RANGE_DAYS:
+        from_date = to_date - timedelta(days=_MAX_RANGE_DAYS)
+    return from_date, to_date
 
 
 # --- Response models ---
@@ -106,6 +116,7 @@ async def get_overview(
     hub_id: int | None = Query(default=None),
     service_id: int | None = Query(default=None),
 ):
+    from_date, to_date = _clamp_range(from_date, to_date)
     q = (
         select(
             func.count().label("total"),
@@ -147,6 +158,7 @@ async def get_volume_trend(
     service_id: int | None = Query(default=None),
     interval: str = Query(default="day", pattern="^(hour|day)$"),
 ):
+    from_date, to_date = _clamp_range(from_date, to_date)
     trunc_fn = func.date_trunc(interval, Transaction.created_date)
 
     q = (
@@ -189,6 +201,7 @@ async def get_status_distribution(
     hub_id: int | None = Query(default=None),
     service_id: int | None = Query(default=None),
 ):
+    from_date, to_date = _clamp_range(from_date, to_date)
     q = (
         select(Transaction.status, func.count().label("cnt"))
         .where(
@@ -221,6 +234,7 @@ async def get_processing_time(
     service_id: int | None = Query(default=None),
 ):
     """Return p50/p95 processing time in seconds for terminal transactions."""
+    from_date, to_date = _clamp_range(from_date, to_date)
     terminal_values = [s.value for s in TERMINAL_STATUSES]
 
     q = (
@@ -270,6 +284,7 @@ async def get_hub_breakdown(
     to_date: datetime = Query(default_factory=_default_to),
     service_id: int | None = Query(default=None),
 ):
+    from_date, to_date = _clamp_range(from_date, to_date)
     q = (
         select(
             Transaction.hub_id,
