@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -14,12 +14,24 @@ export interface InsightsData {
   context_period: string
 }
 
+export const MAX_MESSAGE_LEN = 500
+export const MAX_CONTEXT_DAYS = 30
+
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [streaming, setStreaming] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
+
+  // Cancel stream on unmount
+  useEffect(() => () => { abortRef.current?.abort() }, [])
 
   async function send(message: string, fromDate?: string, toDate?: string) {
     if (streaming) return
+
+    // Cancel any previous in-flight stream
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
     const userMsg: ChatMessage = { role: 'user', content: message }
     setMessages(prev => [...prev, userMsg, { role: 'assistant', content: '', streaming: true }])
@@ -30,6 +42,7 @@ export function useChat() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, from_date: fromDate, to_date: toDate }),
+        signal: controller.signal,
       })
 
       if (!res.ok || !res.body) throw new Error(`${res.status} ${res.statusText}`)
@@ -66,6 +79,7 @@ export function useChat() {
         }
       }
     } catch (e) {
+      if ((e as Error).name === 'AbortError') return   // user cancelled — no error message
       setMessages(prev => {
         const msgs = [...prev]
         const last = msgs[msgs.length - 1]
@@ -87,9 +101,10 @@ export function useChat() {
     }
   }
 
-  function clear() { setMessages([]) }
+  function cancel() { abortRef.current?.abort() }
+  function clear()  { setMessages([]) }
 
-  return { messages, streaming, send, clear }
+  return { messages, streaming, send, cancel, clear, abortRef }
 }
 
 export function useInsights() {

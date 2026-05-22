@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, Send, Sparkles, Trash2, TriangleAlert, Zap } from 'lucide-react'
-import { useChat, useInsights } from '@/hooks/useAi'
+import { Bot, Send, Sparkles, Trash2, TriangleAlert, X, Zap } from 'lucide-react'
+import { MAX_CONTEXT_DAYS, MAX_MESSAGE_LEN, useChat, useInsights } from '@/hooks/useAi'
 
 function toIso(d: Date) { return d.toISOString().slice(0, 16) }
 
-const defaultFrom = toIso(new Date(Date.now() - 90 * 86_400_000))
+const defaultFrom = toIso(new Date(Date.now() - 7 * 86_400_000))
 const defaultTo   = toIso(new Date())
 
 const SUGGESTED = [
@@ -33,7 +33,7 @@ export function AiAssistant() {
   const [toDate, setToDate]     = useState(defaultTo)
   const [activeTab, setActiveTab] = useState<'chat' | 'insights'>('chat')
 
-  const { messages, streaming, send, clear } = useChat()
+  const { messages, streaming, send, cancel, clear } = useChat()
   const { data: insights, loading: insightsLoading, error: insightsError, generate } = useInsights()
 
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -57,14 +57,30 @@ export function AiAssistant() {
         </div>
 
         {/* Date context */}
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-          <span className="text-xs font-semibold uppercase tracking-widest text-faint">Context period</span>
-          <input type="datetime-local" value={fromDate} onChange={e => setFromDate(e.target.value)}
-            className="rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40" />
-          <span className="text-faint">→</span>
-          <input type="datetime-local" value={toDate} onChange={e => setToDate(e.target.value)}
-            className="rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40" />
-        </div>
+        {(() => {
+          const days = Math.round((new Date(toDate).getTime() - new Date(fromDate).getTime()) / 86_400_000)
+          const over = days > MAX_CONTEXT_DAYS
+          return (
+            <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs font-semibold uppercase tracking-widest text-faint">Context period</span>
+                <input type="datetime-local" value={fromDate} onChange={e => setFromDate(e.target.value)}
+                  className="rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                <span className="text-faint">→</span>
+                <input type="datetime-local" value={toDate} onChange={e => setToDate(e.target.value)}
+                  className="rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                <span className={`text-xs ${over ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                  {days} day{days !== 1 ? 's' : ''}
+                </span>
+              </div>
+              {over && (
+                <p className="text-xs text-amber-400">
+                  Range exceeds {MAX_CONTEXT_DAYS} days — the backend will automatically cap it to protect the production database.
+                </p>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Tab bar */}
         <div className="flex gap-1 border-b border-border">
@@ -120,25 +136,42 @@ export function AiAssistant() {
             </div>
 
             {/* Input row */}
-            <div className="flex gap-2">
-              <input
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                placeholder="Ask about failures, trends, anomalies…"
-                disabled={streaming}
-                className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
-              />
-              <button onClick={handleSend} disabled={streaming || !input.trim()}
-                className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity">
-                <Send size={15} />
-              </button>
-              {messages.length > 0 && (
-                <button onClick={clear} title="Clear chat"
-                  className="rounded-xl border border-border p-2.5 text-muted-foreground hover:bg-subtle hover:text-foreground transition-colors">
-                  <Trash2 size={15} />
-                </button>
-              )}
+            <div className="space-y-1">
+              <div className="flex gap-2">
+                <input
+                  value={input}
+                  onChange={e => setInput(e.target.value.slice(0, MAX_MESSAGE_LEN))}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                  placeholder="Ask about failures, trends, anomalies…"
+                  disabled={streaming}
+                  className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+                />
+                {streaming ? (
+                  <button
+                    onClick={cancel}
+                    title="Cancel"
+                    className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-subtle transition-colors"
+                  >
+                    <X size={15} /> Cancel
+                  </button>
+                ) : (
+                  <button onClick={handleSend} disabled={!input.trim()}
+                    className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity">
+                    <Send size={15} />
+                  </button>
+                )}
+                {messages.length > 0 && !streaming && (
+                  <button onClick={clear} title="Clear chat"
+                    className="rounded-xl border border-border p-2.5 text-muted-foreground hover:bg-subtle hover:text-foreground transition-colors">
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
+              <div className="flex justify-end">
+                <span className={`text-xs tabular-nums ${input.length >= MAX_MESSAGE_LEN ? 'text-red-400' : 'text-faint'}`}>
+                  {input.length} / {MAX_MESSAGE_LEN}
+                </span>
+              </div>
             </div>
           </div>
         )}

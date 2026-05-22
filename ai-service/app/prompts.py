@@ -3,7 +3,7 @@
 import json
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache import ReferenceCache
@@ -44,6 +44,9 @@ async def build_context(
 
     def naive(dt: datetime) -> datetime:
         return dt.replace(tzinfo=None) if dt.tzinfo else dt
+
+    # Kill any individual DB query that runs longer than 10 seconds
+    await db.execute(text("SET LOCAL statement_timeout = '10000'"))
 
     failed_values = [s.value for s in FAILED_STATUSES]
     failed_case = case((Transaction.status.in_(failed_values), 1), else_=0)
