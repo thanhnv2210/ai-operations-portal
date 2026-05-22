@@ -1,0 +1,15 @@
+1) The current backend repositories
+/Users/ThanhNguyen/AI_WS/architecture-practice/public/docs/backend/dependency-analysis.md
+Find all repositorys related to the backend in the above document.
+
+2) local DB connection:
+postgres database
+localhost:54320
+admin/admin
+We have 2 schemas:
+- ml_db: for non secure data, including product configguration
+- keycloak: for secure data, including benemanagement, and transaction management
+
+3) Database management repositories:
+/Users/ThanhNguyen/CurrentWS/ml-app-db-liquibase
+/Users/ThanhNguyen/CurrentWS/ml-secure-db-liquibase
