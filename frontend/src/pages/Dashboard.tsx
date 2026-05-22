@@ -27,10 +27,29 @@ function fmtVolume(v: number): string {
   return v.toLocaleString('en-SG', { style: 'currency', currency: 'SGD', maximumFractionDigits: 0 })
 }
 
+function CardSkeleton() {
+  return <div className="h-28 animate-pulse rounded-xl bg-subtle" />
+}
+
+function SectionSkeleton({ height = 'h-56' }: { height?: string }) {
+  return <div className={`${height} animate-pulse rounded-xl bg-subtle`} />
+}
+
+function SectionError({ label, message }: { label: string; message: string }) {
+  return (
+    <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">
+      Failed to load {label}: {message}
+    </div>
+  )
+}
+
 export function Dashboard() {
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters)
-  const { overview, volumeTrend, statusDistribution, processingTime, hubBreakdown, loading, error } =
-    useDashboard(filters)
+  const {
+    overview, volumeTrend, statusDistribution, processingTime, hubBreakdown,
+    loadingOverview, loadingVolume, loadingStatus, loadingProcessing, loadingHub,
+    errors,
+  } = useDashboard(filters)
 
   const failHighlight =
     overview && overview.failure_rate > 0.1 ? 'danger'
@@ -45,56 +64,66 @@ export function Dashboard() {
         {/* Filters */}
         <FilterBar filters={filters} onChange={setFilters} />
 
-        {/* Error */}
-        {error && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-            Failed to load dashboard data: {error}
-          </div>
-        )}
+        {/* KPI cards — each renders independently */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {loadingOverview ? (
+            <><CardSkeleton /><CardSkeleton /><CardSkeleton /></>
+          ) : errors.overview ? (
+            <div className="col-span-3 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">
+              Overview error: {errors.overview}
+            </div>
+          ) : overview ? (
+            <>
+              <MetricCard
+                label="Total Transactions"
+                value={overview.total_transactions.toLocaleString()}
+              />
+              <MetricCard
+                label="Failure Rate"
+                value={`${(overview.failure_rate * 100).toFixed(1)}%`}
+                sub={`${overview.failed_transactions} failed`}
+                highlight={failHighlight}
+              />
+              <MetricCard
+                label="Total Volume"
+                value={fmtVolume(overview.total_volume)}
+                sub={`avg ${fmtVolume(overview.avg_volume_per_tx)} / tx`}
+              />
+            </>
+          ) : null}
 
-        {/* Loading skeleton */}
-        {loading && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-xl bg-subtle" />
-            ))}
-          </div>
-        )}
-
-        {/* KPI cards */}
-        {!loading && overview && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <MetricCard
-              label="Total Transactions"
-              value={overview.total_transactions.toLocaleString()}
-            />
-            <MetricCard
-              label="Failure Rate"
-              value={`${(overview.failure_rate * 100).toFixed(1)}%`}
-              sub={`${overview.failed_transactions} failed`}
-              highlight={failHighlight}
-            />
-            <MetricCard
-              label="Total Volume"
-              value={fmtVolume(overview.total_volume)}
-              sub={`avg ${fmtVolume(overview.avg_volume_per_tx)} / tx`}
-            />
+          {loadingProcessing ? (
+            <CardSkeleton />
+          ) : errors.processing ? (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-400">
+              {errors.processing}
+            </div>
+          ) : processingTime ? (
             <MetricCard
               label="Processing Time p50"
-              value={fmtSeconds(processingTime?.p50_seconds ?? null)}
-              sub={processingTime ? `p95 ${fmtSeconds(processingTime.p95_seconds)}` : undefined}
+              value={fmtSeconds(processingTime.p50_seconds ?? null)}
+              sub={`p95 ${fmtSeconds(processingTime.p95_seconds ?? null)}`}
             />
-          </div>
-        )}
+          ) : null}
+        </div>
 
         {/* Volume chart */}
-        {!loading && volumeTrend && <VolumeChart data={volumeTrend} />}
+        {loadingVolume  ? <SectionSkeleton height="h-64" />
+          : errors.volume ? <SectionError label="volume trend" message={errors.volume} />
+          : volumeTrend  ? <VolumeChart data={volumeTrend} />
+          : null}
 
         {/* Status distribution */}
-        {!loading && statusDistribution && <StatusDistributionChart data={statusDistribution} />}
+        {loadingStatus  ? <SectionSkeleton height="h-72" />
+          : errors.status ? <SectionError label="status distribution" message={errors.status} />
+          : statusDistribution ? <StatusDistributionChart data={statusDistribution} />
+          : null}
 
         {/* Hub breakdown */}
-        {!loading && hubBreakdown && <HubBreakdownTable data={hubBreakdown} />}
+        {loadingHub  ? <SectionSkeleton height="h-48" />
+          : errors.hub ? <SectionError label="hub breakdown" message={errors.hub} />
+          : hubBreakdown ? <HubBreakdownTable data={hubBreakdown} />
+          : null}
       </div>
     </div>
   )

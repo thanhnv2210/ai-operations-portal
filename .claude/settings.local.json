@@ -68,7 +68,8 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d[''''choices''''][0][''''message''''][''''content''''][:80]\\)\")",
       "Bash(source .venv/bin/activate)",
       "Bash(python3 -c \":*)",
-      "Bash(python scripts/verify_schema.py)"
+      "Bash(python scripts/verify_schema.py)",
+      "Bash(ls /Users/ThanhNguyen/AI_WS/ai-operations-portal/frontend/.env*)"
     ]
   }
 }
