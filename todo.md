@@ -42,12 +42,12 @@
 - [x] Frontend: transaction detail drawer with audit timeline
 
 ## Phase 5: AI Assistant + Insights Engine
-- [ ] Anthropic client (streaming, adaptive thinking, Ollama fallback)
-- [ ] Prompt templates: summary, anomaly explanation, trend observation
-- [ ] API: natural language query endpoint
-- [ ] API: AI insights generation (on-demand)
-- [ ] Frontend: AI chat panel
-- [ ] Frontend: insights display
+- [x] Anthropic client (streaming, adaptive thinking, Ollama fallback)
+- [x] Prompt templates: summary, anomaly explanation, trend observation
+- [x] API: natural language query endpoint
+- [x] API: AI insights generation (on-demand)
+- [x] Frontend: AI chat panel
+- [x] Frontend: insights display
 
 ## Phase 6: Admin Configuration
 - [ ] API: CRUD for prompt templates + alert thresholds

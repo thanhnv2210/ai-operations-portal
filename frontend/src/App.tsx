@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { LayoutDashboard, Search } from 'lucide-react'
+import { Bot, LayoutDashboard, Search } from 'lucide-react'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { AiAssistant } from '@/pages/AiAssistant'
 import { Dashboard } from '@/pages/Dashboard'
 import { TransactionExplorer } from '@/pages/TransactionExplorer'
 
-type Tab = 'dashboard' | 'transactions'
+type Tab = 'dashboard' | 'transactions' | 'ai'
 
 const TABS: { id: Tab; label: string; Icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard',    label: 'Dashboard',    Icon: LayoutDashboard },
   { id: 'transactions', label: 'Transactions', Icon: Search },
+  { id: 'ai',          label: 'AI Assistant', Icon: Bot },
 ]
 
 function Shell() {
@@ -44,6 +46,7 @@ function Shell() {
       {/* Page content */}
       {tab === 'dashboard'    && <Dashboard />}
       {tab === 'transactions' && <TransactionExplorer />}
+      {tab === 'ai'           && <AiAssistant />}
     </div>
   )
 }
