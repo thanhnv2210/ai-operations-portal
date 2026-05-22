@@ -1,0 +1,31 @@
+services:
+  ai-service:
+    build:
+      context: ../ai-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: local
+      ML_DB_URL: postgresql+asyncpg://admin:admin@host.docker.internal:54320/ml_db
+      KEYCLOAK_DB_URL: postgresql+asyncpg://admin:admin@host.docker.internal:54320/keycloak
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    volumes:
+      - ../ai-service:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - ../frontend/src:/app/src
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      - ai-service
+
+# The PostgreSQL databases (ml_db + keycloak) run outside Docker on the host at
+# port 54320. Services reach them via host.docker.internal.

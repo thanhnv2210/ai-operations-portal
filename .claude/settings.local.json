@@ -39,7 +39,10 @@
       "Bash(xargs cat:*)",
       "Bash(PGPASSWORD=admin psql -h localhost -p 54320 -U admin -d ml_db -c \"\\\\d service_management.external_partner\")",
       "Bash(PGPASSWORD=admin psql -h localhost -p 54320 -U admin -d ml_db -c \"\\\\d service_management.remit_service_beneficiary_field_mapping\")",
-      "Bash(PGPASSWORD=admin psql -h localhost -p 54320 -U admin -d ml_db -c \"\\\\d ml_schema.receiving_countries\")"
+      "Bash(PGPASSWORD=admin psql -h localhost -p 54320 -U admin -d ml_db -c \"\\\\d ml_schema.receiving_countries\")",
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
