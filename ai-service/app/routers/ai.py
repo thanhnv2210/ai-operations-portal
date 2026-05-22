@@ -6,6 +6,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+_SGT = timezone(timedelta(hours=8))
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -31,11 +33,11 @@ _LLM_TIMEOUT      = 120    # seconds — LLM response
 
 
 def _default_from() -> datetime:
-    return datetime.now(timezone.utc) - timedelta(days=7)
+    return (datetime.now(_SGT) - timedelta(days=7)).replace(tzinfo=None)
 
 
 def _default_to() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(_SGT).replace(tzinfo=None)
 
 
 def _clamp_dates(from_date: datetime | None, to_date: datetime | None) -> tuple[datetime, datetime]:
@@ -164,7 +166,7 @@ async def generate_insights(
             "recommendations": [],
         }
 
-    period = f"{from_date.strftime('%Y-%m-%d')} → {to_date.strftime('%Y-%m-%d')}"
+    period = f"{from_date.strftime('%Y-%m-%d')} → {to_date.strftime('%Y-%m-%d')} SGT"
 
     return InsightsResponse(
         summary=data.get("summary", ""),

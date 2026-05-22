@@ -5,15 +5,12 @@ import { MetricCard } from '@/components/MetricCard'
 import { StatusDistributionChart } from '@/components/StatusDistributionChart'
 import { VolumeChart } from '@/components/VolumeChart'
 import { useDashboard } from '@/hooks/useDashboard'
+import { toSgtIso } from '@/lib/sgt'
 import type { DashboardFilters } from '@/types/dashboard'
 
-function toIso(d: Date) {
-  return d.toISOString().slice(0, 16)
-}
-
 const defaultFilters: DashboardFilters = {
-  from_date: toIso(new Date(Date.now() - 90 * 86_400_000)),
-  to_date: toIso(new Date()),
+  from_date: toSgtIso(new Date(Date.now() - 90 * 86_400_000)),
+  to_date: toSgtIso(new Date()),
 }
 
 function fmtSeconds(s: number | null): string {

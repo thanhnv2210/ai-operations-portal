@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bot, Send, Sparkles, Trash2, TriangleAlert, X, Zap } from 'lucide-react'
 import { MAX_CONTEXT_DAYS, MAX_MESSAGE_LEN, useChat, useInsights } from '@/hooks/useAi'
+import { toSgtIso } from '@/lib/sgt'
 
-function toIso(d: Date) { return d.toISOString().slice(0, 16) }
-
-const defaultFrom = toIso(new Date(Date.now() - 7 * 86_400_000))
-const defaultTo   = toIso(new Date())
+const defaultFrom = toSgtIso(new Date(Date.now() - 7 * 86_400_000))
+const defaultTo   = toSgtIso(new Date())
 
 const SUGGESTED = [
   'Summarise the current operational health',

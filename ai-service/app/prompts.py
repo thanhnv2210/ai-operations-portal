@@ -3,6 +3,8 @@
 import json
 from datetime import datetime, timedelta, timezone
 
+_SGT = timezone(timedelta(hours=8))
+
 from sqlalchemy import case, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,12 +40,15 @@ async def build_context(
 ) -> str:
     """Return a structured text block describing current operational state."""
     if to_date is None:
-        to_date = datetime.now(timezone.utc)
+        to_date = datetime.now(_SGT).replace(tzinfo=None)
     if from_date is None:
         from_date = to_date - timedelta(days=7)
 
     def naive(dt: datetime) -> datetime:
-        return dt.replace(tzinfo=None) if dt.tzinfo else dt
+        """Convert to SGT-naive — DB stores TIMESTAMP WITHOUT TIME ZONE in SGT."""
+        if dt.tzinfo:
+            dt = dt.astimezone(_SGT)
+        return dt.replace(tzinfo=None)
 
     # Kill any individual DB query that runs longer than 10 seconds
     await db.execute(text("SET LOCAL statement_timeout = '10000'"))
@@ -120,7 +125,7 @@ async def build_context(
     error_lines  = [f"  - {r.error_code}: {r.cnt}" for r in error_rows if r.error_code]
 
     context = f"""=== LIVE OPERATIONAL CONTEXT ===
-Period: {from_date.strftime('%Y-%m-%d %H:%M')} → {to_date.strftime('%Y-%m-%d %H:%M')} UTC
+Period: {from_date.strftime('%Y-%m-%d %H:%M')} → {to_date.strftime('%Y-%m-%d %H:%M')} SGT
 
 OVERALL:
   Total transactions : {total:,}

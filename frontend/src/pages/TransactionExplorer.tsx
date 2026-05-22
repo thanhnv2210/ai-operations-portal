@@ -3,11 +3,8 @@ import { Search } from 'lucide-react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { TransactionDrawer } from '@/components/TransactionDrawer'
 import { useTransactions } from '@/hooks/useTransactions'
+import { fmtSgt, toSgtIso } from '@/lib/sgt'
 import type { TransactionFilters } from '@/types/transactions'
-
-function toIso(d: Date) {
-  return d.toISOString().slice(0, 16)
-}
 
 const QUICK_RANGES = [
   { label: '15m', ms: 15 * 60_000 },
@@ -18,8 +15,8 @@ const QUICK_RANGES = [
 ]
 
 const defaultFilters: TransactionFilters = {
-  from_date: toIso(new Date(Date.now() - 24 * 60 * 60_000)),
-  to_date: toIso(new Date()),
+  from_date: toSgtIso(new Date(Date.now() - 24 * 60 * 60_000)),
+  to_date: toSgtIso(new Date()),
   status: [],
   page: 1,
   page_size: 20,
@@ -36,10 +33,6 @@ function fmt(v: number | null | undefined, currency?: string | null) {
   return currency ? `${v.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}` : String(v)
 }
 
-function fmtDate(d: string | null) {
-  if (!d) return '—'
-  return new Date(d).toLocaleString('en-SG', { dateStyle: 'short', timeStyle: 'short' })
-}
 
 export function TransactionExplorer() {
   const [filters, setFilters] = useState<TransactionFilters>(defaultFilters)
@@ -51,7 +44,7 @@ export function TransactionExplorer() {
   function applyQuickRange(label: string, ms: number) {
     const now = new Date()
     setActiveQuick(label)
-    setFilters(f => ({ ...f, from_date: toIso(new Date(now.getTime() - ms)), to_date: toIso(now), page: 1 }))
+    setFilters(f => ({ ...f, from_date: toSgtIso(new Date(now.getTime() - ms)), to_date: toSgtIso(now), page: 1 }))
   }
 
   const { data, loading, error } = useTransactions(filters)
@@ -235,7 +228,7 @@ export function TransactionExplorer() {
                     <td className="px-4 py-3 font-mono text-xs text-red-400">
                       {tx.error_code ?? tx.hub_error_code ?? ''}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtDate(tx.created_date)}</td>
+                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtSgt(tx.created_date)}</td>
                   </tr>
                 ))}
                 {!loading && data?.items.length === 0 && (

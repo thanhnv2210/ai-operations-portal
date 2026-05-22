@@ -4,6 +4,8 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Annotated
 
+_SGT = timezone(timedelta(hours=8))
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import asc, desc, func, or_, select
@@ -22,18 +24,21 @@ CacheDep = Annotated[ReferenceCache, Depends(get_cache)]
 
 
 def _naive(dt: datetime) -> datetime:
-    return dt.replace(tzinfo=None) if dt.tzinfo else dt
+    """Convert to SGT-naive — DB stores TIMESTAMP WITHOUT TIME ZONE in SGT."""
+    if dt.tzinfo:
+        dt = dt.astimezone(_SGT)
+    return dt.replace(tzinfo=None)
 
 
 _MAX_RANGE_DAYS = 90
 
 
 def _default_from() -> datetime:
-    return datetime.now(timezone.utc) - timedelta(days=30)
+    return (datetime.now(_SGT) - timedelta(days=30)).replace(tzinfo=None)
 
 
 def _default_to() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(_SGT).replace(tzinfo=None)
 
 
 def _clamp_range(from_date: datetime, to_date: datetime) -> tuple[datetime, datetime]:
