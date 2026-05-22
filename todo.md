@@ -28,11 +28,11 @@
 - [x] In-memory reference data cache (countries, operators, services)
 
 ## Phase 3: Operational Dashboard
-- [ ] API: transaction volume + failure rate by time window + hub
-- [ ] API: processing time percentiles (p50/p95)
-- [ ] API: status distribution breakdown
-- [ ] Frontend: metric cards + Recharts charts
-- [ ] Frontend: hub/service filter controls
+- [x] API: transaction volume + failure rate by time window + hub
+- [x] API: processing time percentiles (p50/p95)
+- [x] API: status distribution breakdown
+- [x] Frontend: metric cards + Recharts charts
+- [x] Frontend: hub/service filter controls
 
 ## Phase 4: Transaction Explorer
 - [ ] API: paginated search (status, date range, service, hub, error_code)

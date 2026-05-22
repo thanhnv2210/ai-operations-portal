@@ -57,9 +57,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # --- Routers (added as features are built) ---
-    # from app.routers import dashboard, transactions, ai_assistant
-    # app.include_router(dashboard.router, prefix="/api/v1")
+    # --- Routers ---
+    from app.routers.dashboard import router as dashboard_router
+    app.include_router(dashboard_router)
 
     @app.get("/health", tags=["ops"])
     async def health() -> dict:

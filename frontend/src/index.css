@@ -1,6 +1,48 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
+  --background:         #ffffff;
+  --card:               #ffffff;
+  --muted:              #f9fafb;   /* gray-50 */
+  --subtle:             #f3f4f6;   /* gray-100 */
+  --border:             #e5e7eb;   /* gray-200 */
+  --foreground:         #111827;   /* gray-900 */
+  --muted-foreground:   #6b7280;   /* gray-500 */
+  --faint:              #9ca3af;   /* gray-400 */
+  --primary:            #6366f1;   /* indigo-500 */
+  --primary-foreground: #ffffff;
+}
+
+.dark {
+  --background:         #030712;   /* gray-950 */
+  --card:               #1f2937;   /* gray-800 */
+  --muted:              #111827;   /* gray-900 */
+  --subtle:             #374151;   /* gray-700 */
+  --border:             #374151;   /* gray-700 */
+  --foreground:         #f3f4f6;   /* gray-100 */
+  --muted-foreground:   #9ca3af;   /* gray-400 */
+  --faint:              #6b7280;   /* gray-500 */
+  --primary:            #818cf8;   /* indigo-400 */
+  --primary-foreground: #030712;
+}
+
+@theme inline {
+  --color-background:         var(--background);
+  --color-card:               var(--card);
+  --color-muted:              var(--muted);
+  --color-subtle:             var(--subtle);
+  --color-border:             var(--border);
+  --color-foreground:         var(--foreground);
+  --color-muted-foreground:   var(--muted-foreground);
+  --color-faint:              var(--faint);
+  --color-primary:            var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+}
+
+html {
+  font-size: 15px;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
