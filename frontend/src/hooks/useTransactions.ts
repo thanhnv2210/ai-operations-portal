@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AuditEntry, TransactionDetail, TransactionFilters, TransactionPage } from '@/types/transactions'
+import type { AuditEntry, RefItem, TransactionDetail, TransactionFilters, TransactionPage } from '@/types/transactions'
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url)
@@ -11,6 +11,7 @@ function toParams(f: TransactionFilters): string {
   const p = new URLSearchParams({
     from_date: f.from_date,
     to_date: f.to_date,
+    sort_order: f.sort_order,
     page: String(f.page),
     page_size: String(f.page_size),
   })
@@ -36,10 +37,28 @@ export function useTransactions(filters: TransactionFilters) {
   }, [
     filters.from_date, filters.to_date, filters.page, filters.page_size,
     filters.status.join(','), filters.hub_id, filters.service_id,
-    filters.error_code, filters.payment_reference_id,
+    filters.error_code, filters.payment_reference_id, filters.sort_order,
   ])
 
   return { data, loading, error }
+}
+
+export function useReference(hubId?: number) {
+  const [hubs, setHubs] = useState<RefItem[]>([])
+  const [services, setServices] = useState<RefItem[]>([])
+
+  useEffect(() => {
+    fetchJson<RefItem[]>('/api/v1/transactions/reference/hubs').then(setHubs).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const url = hubId != null
+      ? `/api/v1/transactions/reference/services?hub_id=${hubId}`
+      : '/api/v1/transactions/reference/services'
+    fetchJson<RefItem[]>(url).then(setServices).catch(() => {})
+  }, [hubId])
+
+  return { hubs, services }
 }
 
 export function useTransactionDetail(id: number | null) {

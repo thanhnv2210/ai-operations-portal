@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 
 _SGT = timezone(timedelta(hours=8))
 
@@ -241,6 +241,39 @@ def _tx_to_detail(tx: Transaction, cache: ReferenceCache) -> TransactionDetail:
 
 # --- Endpoints ---
 
+class RefItem(BaseModel):
+    id: int
+    name: str
+    active: bool = True
+
+
+@router.get("/reference/hubs", response_model=list[RefItem])
+async def list_hubs(cache: CacheDep):
+    """Return all hubs (external partners) from the reference cache."""
+    items = [
+        RefItem(id=p.external_partner_id, name=p.external_partner_name or str(p.external_partner_id))
+        for p in cache.partners_by_id.values()
+        if p.external_partner_name
+    ]
+    return sorted(items, key=lambda x: x.name)
+
+
+@router.get("/reference/services", response_model=list[RefItem])
+async def list_services(cache: CacheDep, hub_id: int | None = Query(default=None)):
+    """Return services from the reference cache, optionally filtered by hub.
+
+    Active services are sorted first, then deactivated, both alphabetically.
+    """
+    items = []
+    for s in cache.services_by_id.values():
+        if hub_id is not None and s.external_partner_id != hub_id:
+            continue
+        name = s.service_name_display or s.system_name or str(s.remit_service_id)
+        active = s.status == "ACTIVATE" and bool(s.is_available)
+        items.append(RefItem(id=s.remit_service_id, name=name, active=active))
+    return sorted(items, key=lambda x: (not x.active, x.name))
+
+
 @router.get("", response_model=TransactionPage)
 async def search_transactions(
     db: DbDep,
@@ -252,6 +285,7 @@ async def search_transactions(
     service_id: int | None = Query(default=None),
     error_code: str | None = Query(default=None),
     payment_reference_id: str | None = Query(default=None),
+    sort_order: Literal["asc", "desc"] = Query(default="desc"),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ):
@@ -283,9 +317,10 @@ async def search_transactions(
 
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
 
+    order = asc(Transaction.created_date) if sort_order == "asc" else desc(Transaction.created_date)
     rows = (
         await db.execute(
-            base.order_by(desc(Transaction.created_date))
+            base.order_by(order)
             .offset((page - 1) * page_size)
             .limit(page_size)
         )

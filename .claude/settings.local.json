@@ -69,7 +69,8 @@
       "Bash(source .venv/bin/activate)",
       "Bash(python3 -c \":*)",
       "Bash(python scripts/verify_schema.py)",
-      "Bash(ls /Users/ThanhNguyen/AI_WS/ai-operations-portal/frontend/.env*)"
+      "Bash(ls /Users/ThanhNguyen/AI_WS/ai-operations-portal/frontend/.env*)",
+      "Bash(psql:*)"
     ]
   }
 }

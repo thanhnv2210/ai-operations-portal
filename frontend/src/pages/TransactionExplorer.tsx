@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Search } from 'lucide-react'
+import { ArrowDownUp, Search } from 'lucide-react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { TransactionDrawer } from '@/components/TransactionDrawer'
-import { useTransactions } from '@/hooks/useTransactions'
+import { useReference, useTransactions } from '@/hooks/useTransactions'
 import { fmtSgt, toSgtIso } from '@/lib/sgt'
 import type { TransactionFilters } from '@/types/transactions'
 
@@ -18,6 +18,7 @@ const defaultFilters: TransactionFilters = {
   from_date: toSgtIso(new Date(Date.now() - 24 * 60 * 60_000)),
   to_date: toSgtIso(new Date()),
   status: [],
+  sort_order: 'desc',
   page: 1,
   page_size: 20,
 }
@@ -47,6 +48,7 @@ export function TransactionExplorer() {
     setFilters(f => ({ ...f, from_date: toSgtIso(new Date(now.getTime() - ms)), to_date: toSgtIso(now), page: 1 }))
   }
 
+  const { hubs, services } = useReference(filters.hub_id)
   const { data, loading, error } = useTransactions(filters)
 
   function applySearch() {
@@ -129,6 +131,55 @@ export function TransactionExplorer() {
             )}
           </div>
 
+          {/* Hub / Service filters */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-semibold uppercase tracking-widest text-faint w-16">Hub</span>
+            <select
+              value={filters.hub_id ?? ''}
+              onChange={e => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                setFilters(f => ({ ...f, hub_id: val, service_id: undefined, page: 1 }))
+              }}
+              className="rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="">All hubs</option>
+              {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+            </select>
+            <span className="text-xs font-semibold uppercase tracking-widest text-faint">Service</span>
+            <select
+              value={filters.service_id ?? ''}
+              onChange={e => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                setFilters(f => ({ ...f, service_id: val, page: 1 }))
+              }}
+              className="rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 max-w-xs"
+            >
+              <option value="">All services</option>
+              {services.some(s => s.active) && (
+                <optgroup label="Active">
+                  {services.filter(s => s.active).map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </optgroup>
+              )}
+              {services.some(s => !s.active) && (
+                <optgroup label="Deactivated">
+                  {services.filter(s => !s.active).map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            {(filters.hub_id != null || filters.service_id != null) && (
+              <button
+                onClick={() => setFilters(f => ({ ...f, hub_id: undefined, service_id: undefined, page: 1 }))}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                clear
+              </button>
+            )}
+          </div>
+
           {/* Search inputs */}
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-semibold uppercase tracking-widest text-faint w-16">Search</span>
@@ -195,7 +246,15 @@ export function TransactionExplorer() {
                   <th className="px-4 py-2.5 font-medium">Service</th>
                   <th className="px-4 py-2.5 font-medium text-right">Amount</th>
                   <th className="px-4 py-2.5 font-medium">Error</th>
-                  <th className="px-4 py-2.5 font-medium">Created</th>
+                  <th className="px-4 py-2.5 font-medium">
+                    <button
+                      onClick={() => setFilters(f => ({ ...f, sort_order: f.sort_order === 'desc' ? 'asc' : 'desc', page: 1 }))}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Created
+                      <ArrowDownUp size={11} className={filters.sort_order === 'asc' ? 'text-primary' : 'text-faint'} />
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>

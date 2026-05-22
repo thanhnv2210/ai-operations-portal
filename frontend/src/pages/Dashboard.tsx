@@ -9,7 +9,7 @@ import { toSgtIso } from '@/lib/sgt'
 import type { DashboardFilters } from '@/types/dashboard'
 
 const defaultFilters: DashboardFilters = {
-  from_date: toSgtIso(new Date(Date.now() - 90 * 86_400_000)),
+  from_date: toSgtIso(new Date(Date.now() - 7 * 86_400_000)),
   to_date: toSgtIso(new Date()),
 }
 

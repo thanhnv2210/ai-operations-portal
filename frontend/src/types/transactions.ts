@@ -97,6 +97,13 @@ export interface TransactionFilters {
   service_id?: number
   error_code?: string
   payment_reference_id?: string
+  sort_order: 'asc' | 'desc'
   page: number
   page_size: number
+}
+
+export interface RefItem {
+  id: number
+  name: string
+  active: boolean
 }
