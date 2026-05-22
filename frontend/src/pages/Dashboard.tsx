@@ -87,13 +87,11 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Charts row */}
-        {!loading && volumeTrend && statusDistribution && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <VolumeChart data={volumeTrend} />
-            <StatusDistributionChart data={statusDistribution} />
-          </div>
-        )}
+        {/* Volume chart */}
+        {!loading && volumeTrend && <VolumeChart data={volumeTrend} />}
+
+        {/* Status distribution */}
+        {!loading && statusDistribution && <StatusDistributionChart data={statusDistribution} />}
 
         {/* Hub breakdown */}
         {!loading && hubBreakdown && <HubBreakdownTable data={hubBreakdown} />}
