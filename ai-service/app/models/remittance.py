@@ -160,7 +160,6 @@ class Transaction(KeycloakBase):
     # Payment / SOF
     payment_mode: Mapped[str | None] = mapped_column(String(40))
     card_id: Mapped[str | None] = mapped_column(String(40))
-    source_of_fund_ref_id: Mapped[str | None] = mapped_column(String(21))
     proxy_refund_status: Mapped[str | None] = mapped_column(String(20))
 
     # Misc

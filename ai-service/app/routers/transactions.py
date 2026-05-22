@@ -145,7 +145,6 @@ class TransactionDetail(BaseModel):
 
     # Payment
     payment_mode: str | None
-    source_of_fund_ref_id: str | None
     remit_purpose_id: str | None
     external_service_id: int | None
 
@@ -227,7 +226,6 @@ def _tx_to_detail(tx: Transaction, cache: ReferenceCache) -> TransactionDetail:
         hub_error_code=tx.hub_error_code,
         hub_error_message=tx.hub_error_message,
         payment_mode=tx.payment_mode,
-        source_of_fund_ref_id=tx.source_of_fund_ref_id,
         remit_purpose_id=tx.remit_purpose_id,
         external_service_id=tx.external_service_id,
         created_date=tx.created_date,

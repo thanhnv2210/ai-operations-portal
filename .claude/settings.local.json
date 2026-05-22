@@ -65,7 +65,10 @@
       "Bash(source ~/.zshrc)",
       "Bash(aiops-restart)",
       "Bash(python3 -c \"import sys,json; [print\\(m[''''name'''']\\) for m in json.load\\(sys.stdin\\)[''''models'''']]\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d[''''choices''''][0][''''message''''][''''content''''][:80]\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d[''''choices''''][0][''''message''''][''''content''''][:80]\\)\")",
+      "Bash(source .venv/bin/activate)",
+      "Bash(python3 -c \":*)",
+      "Bash(python scripts/verify_schema.py)"
     ]
   }
 }

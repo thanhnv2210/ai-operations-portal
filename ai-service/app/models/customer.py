@@ -31,7 +31,6 @@ class Beneficiary(KeycloakBase):
     # Destination
     receiving_country: Mapped[int | None] = mapped_column(Integer) # FK → country.id
     mobile_operator: Mapped[int | None] = mapped_column(Integer)   # Telepin operator_id
-    ml_operator_id: Mapped[int | None] = mapped_column(Integer)    # FK → mobile_operator.id
     issuer_id: Mapped[int | None] = mapped_column(Integer)
     issuer_alternative_id: Mapped[int | None] = mapped_column(Integer)
     branch_code: Mapped[str | None] = mapped_column(String)

@@ -52,7 +52,6 @@ class RemitService(MlBase):
     markup_rate_percentage: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))
     min_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 9))
     max_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 9))
-    payment_method: Mapped[str | None] = mapped_column(String(16))
     beneficiary_validation_required: Mapped[bool | None] = mapped_column(Boolean)
     beneficiary_auto_inclusion: Mapped[bool | None] = mapped_column(Boolean)
     is_available: Mapped[bool | None] = mapped_column(Boolean)
@@ -84,4 +83,3 @@ class RemitServiceTierFee(MlBase):
     max_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 9))
     markup_fee: Mapped[Decimal | None] = mapped_column(Numeric(20, 9))
     markup_rate_percentage: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))
-    retail_fee: Mapped[Decimal | None] = mapped_column(Numeric(20, 9))
