@@ -11,8 +11,9 @@ if _app_env == "local":
     from dotenv import load_dotenv
     load_dotenv(dotenv_path=f".env.{_app_env}", override=False)
 
+from app.cache import get_cache, load as load_cache  # noqa: E402
 from app.config import get_settings  # noqa: E402
-from app.database import dispose_engines, init_engines  # noqa: E402
+from app.database import dispose_engines, get_ml_db, init_engines  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,7 +27,13 @@ async def lifespan(app: FastAPI):
     cfg = get_settings()
     log.info("Starting ai-service [env=%s]", cfg.app_env)
     init_engines()
+
+    # Populate reference data cache from ml_db
+    async for ml_session in get_ml_db():
+        await load_cache(ml_session)
+
     yield
+
     log.info("Shutting down ai-service")
     await dispose_engines()
 
@@ -56,7 +63,17 @@ def create_app() -> FastAPI:
 
     @app.get("/health", tags=["ops"])
     async def health() -> dict:
-        return {"status": "ok", "env": cfg.app_env}
+        cache = get_cache()
+        return {
+            "status": "ok",
+            "env": cfg.app_env,
+            "cache": {
+                "loaded": cache.loaded,
+                "countries": len(cache.countries_by_id),
+                "services": len(cache.services_by_id),
+                "partners": len(cache.partners_by_id),
+            },
+        }
 
     return app
 

@@ -18,14 +18,14 @@
 - [x] Docker Compose (local dev)
 
 ## Phase 2: Data Layer
-- [ ] SQLAlchemy read models
-  - [ ] `remittance.transaction` (65 columns, TransactionStatus enum)
-  - [ ] `service_management.remit_service` + `external_partner`
-  - [ ] `ml_schema` reference models (country, mobile_operator, issuer, ml_fx_rates)
-  - [ ] `customer.beneficiary` + `beneficiary_service`
-  - [ ] `payment.ml_m_sof_payment`
-- [ ] Cross-DB join helpers (Python-level)
-- [ ] In-memory reference data cache (countries, operators, services)
+- [x] SQLAlchemy read models
+  - [x] `remittance.transaction` (65 columns, TransactionStatus enum)
+  - [x] `service_management.remit_service` + `external_partner`
+  - [x] `ml_schema` reference models (country, mobile_operator, issuer_ml, ml_fx_rates)
+  - [x] `customer.beneficiary` + `beneficiary_service`
+  - [x] `payment.ml_m_sof_payment`
+- [x] Cross-DB join helpers (Python-level)
+- [x] In-memory reference data cache (countries, operators, services)
 
 ## Phase 3: Operational Dashboard
 - [ ] API: transaction volume + failure rate by time window + hub

@@ -10,6 +10,7 @@ python-dotenv==1.0.1
 # Database
 sqlalchemy==2.0.36
 asyncpg==0.30.0
+greenlet==3.1.1
 
 # HTTP client (for Ollama fallback)
 httpx==0.28.1
