@@ -9,8 +9,16 @@ function toIso(d: Date) {
   return d.toISOString().slice(0, 16)
 }
 
+const QUICK_RANGES = [
+  { label: '15m', ms: 15 * 60_000 },
+  { label: '1h',  ms: 60 * 60_000 },
+  { label: '1d',  ms: 24 * 60 * 60_000 },
+  { label: '1w',  ms: 7  * 24 * 60 * 60_000 },
+  { label: '1mo', ms: 30 * 24 * 60 * 60_000 },
+]
+
 const defaultFilters: TransactionFilters = {
-  from_date: toIso(new Date(Date.now() - 90 * 86_400_000)),
+  from_date: toIso(new Date(Date.now() - 24 * 60 * 60_000)),
   to_date: toIso(new Date()),
   status: [],
   page: 1,
@@ -38,6 +46,13 @@ export function TransactionExplorer() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [refInput, setRefInput] = useState('')
   const [errInput, setErrInput] = useState('')
+  const [activeQuick, setActiveQuick] = useState<string | null>('1d')
+
+  function applyQuickRange(label: string, ms: number) {
+    const now = new Date()
+    setActiveQuick(label)
+    setFilters(f => ({ ...f, from_date: toIso(new Date(now.getTime() - ms)), to_date: toIso(now), page: 1 }))
+  }
 
   const { data, loading, error } = useTransactions(filters)
 
@@ -65,18 +80,35 @@ export function TransactionExplorer() {
 
         {/* Filter panel */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-          {/* Date range */}
+          {/* Date range + quick ranges */}
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-semibold uppercase tracking-widest text-faint w-16">Period</span>
+            {/* Quick range pills */}
+            <div className="flex items-center gap-1">
+              {QUICK_RANGES.map(({ label, ms }) => (
+                <button
+                  key={label}
+                  onClick={() => applyQuickRange(label, ms)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    activeQuick === label
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-subtle text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-faint text-xs">or</span>
             <input
               type="datetime-local" value={filters.from_date}
-              onChange={e => setFilters(f => ({ ...f, from_date: e.target.value, page: 1 }))}
+              onChange={e => { setActiveQuick(null); setFilters(f => ({ ...f, from_date: e.target.value, page: 1 })) }}
               className="rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
             <span className="text-faint">→</span>
             <input
               type="datetime-local" value={filters.to_date}
-              onChange={e => setFilters(f => ({ ...f, to_date: e.target.value, page: 1 }))}
+              onChange={e => { setActiveQuick(null); setFilters(f => ({ ...f, to_date: e.target.value, page: 1 })) }}
               className="rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
