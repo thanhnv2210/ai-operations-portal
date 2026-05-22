@@ -46,9 +46,11 @@ export function useTransactions(filters: TransactionFilters) {
 export function useReference(hubId?: number) {
   const [hubs, setHubs] = useState<RefItem[]>([])
   const [services, setServices] = useState<RefItem[]>([])
+  const [statuses, setStatuses] = useState<string[]>([])
 
   useEffect(() => {
     fetchJson<RefItem[]>('/api/v1/transactions/reference/hubs').then(setHubs).catch(() => {})
+    fetchJson<string[]>('/api/v1/transactions/reference/statuses').then(setStatuses).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -58,7 +60,45 @@ export function useReference(hubId?: number) {
     fetchJson<RefItem[]>(url).then(setServices).catch(() => {})
   }, [hubId])
 
-  return { hubs, services }
+  return { hubs, services, statuses }
+}
+
+const POPULAR_KEY = 'tx_status_hits'
+const MAX_POPULAR = 5
+
+function getHits(): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(POPULAR_KEY) || '{}') }
+  catch { return {} }
+}
+
+export function getPopularStatuses(): string[] {
+  return Object.entries(getHits())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, MAX_POPULAR)
+    .map(([s]) => s)
+}
+
+export function recordStatusHits(statuses: string[]) {
+  const hits = getHits()
+  for (const s of statuses) hits[s] = (hits[s] || 0) + 1
+  localStorage.setItem(POPULAR_KEY, JSON.stringify(hits))
+}
+
+export function useStatusCounts(from_date: string, to_date: string, hub_id?: number, service_id?: number) {
+  const [counts, setCounts] = useState<Map<string, number>>(new Map())
+
+  useEffect(() => {
+    const p = new URLSearchParams({ from_date, to_date })
+    if (hub_id != null) p.set('hub_id', String(hub_id))
+    if (service_id != null) p.set('service_id', String(service_id))
+    fetchJson<{ statuses: { status: string; count: number }[] }>(
+      `/api/v1/dashboard/status-distribution?${p}`
+    )
+      .then(d => setCounts(new Map(d.statuses.map(s => [s.status, s.count]))))
+      .catch(() => {})
+  }, [from_date, to_date, hub_id, service_id])
+
+  return counts
 }
 
 export function useTransactionDetail(id: number | null) {

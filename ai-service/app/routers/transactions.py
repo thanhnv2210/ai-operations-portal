@@ -247,6 +247,18 @@ class RefItem(BaseModel):
     active: bool = True
 
 
+@router.get("/reference/statuses", response_model=list[str])
+async def list_statuses(db: DbDep):
+    """Return distinct transaction statuses sorted alphabetically."""
+    rows = (await db.execute(
+        select(Transaction.status)
+        .distinct()
+        .where(Transaction.status.is_not(None))
+        .order_by(Transaction.status)
+    )).scalars().all()
+    return rows
+
+
 @router.get("/reference/hubs", response_model=list[RefItem])
 async def list_hubs(cache: CacheDep):
     """Return all hubs (external partners) from the reference cache."""

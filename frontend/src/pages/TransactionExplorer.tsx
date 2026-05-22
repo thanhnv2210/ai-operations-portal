@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { ArrowDownUp, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowDownUp, Search, Star } from 'lucide-react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { TransactionDrawer } from '@/components/TransactionDrawer'
-import { useReference, useTransactions } from '@/hooks/useTransactions'
+import { getPopularStatuses, recordStatusHits, useReference, useStatusCounts, useTransactions } from '@/hooks/useTransactions'
 import { fmtSgt, toSgtIso } from '@/lib/sgt'
 import type { TransactionFilters } from '@/types/transactions'
 
@@ -23,11 +23,50 @@ const defaultFilters: TransactionFilters = {
   page_size: 20,
 }
 
-const COMMON_STATUSES = [
-  'TRANSACTION_COMPLETED', 'TRANSACTION_ON_HOLD', 'TRANSACTION_FAILED',
-  'REFUNDED', 'REFUNDED_BY_HUB', 'PAYMENT_VALIDATED', 'PAYMENT_RESERVED_FAILED',
-  'FRAUD_CHECK_FAILED',
+const STATUS_GROUPS: { label: string; statuses: string[] }[] = [
+  {
+    label: 'Pre-Payment',
+    statuses: [
+      'PAYMENT_VALIDATED', 'PAYMENT_VALIDATED_FAILED', 'PAYMENT_ACCEPTED', 'PAYMENT_PENDING',
+      'PAYMENT_AML_FAIL', 'PAYMENT_RESERVED', 'PAYMENT_RESERVED_FAILED', 'PAYMENT_ERROR',
+      'PROXY_PAYMENT_RESERVED', 'PROXY_PAYMENT_RESERVED_FAILED', 'PROXY_PAYMENT_ERROR',
+      'FRAUD_CHECK_FAILED', 'FRAUD_CHECK_DECLINED',
+    ],
+  },
+  {
+    label: 'Timeout',
+    statuses: ['PAYMENT_TIMEOUT', 'PROXY_PAYMENT_TIMEOUT', 'TRANSACTION_TIMEOUT', 'FRAUD_CHECK_TIMEOUT'],
+  },
+  {
+    label: 'Submitted',
+    statuses: [
+      'REMIT_BY_TELEPIN_SUBMITTED', 'REMIT_BY_TELEPIN_FAILED', 'TRANSACTION_SUBMITTED',
+      'TRANSACTION_IN_PROGRESS', 'TRANSACTION_AVAILABLE', 'TRANSACTION_ON_HOLD', 'TRANSACTION_HOLD',
+      'TRANSACTION_FAILED', 'TRANSACTION_DECLINED', 'TRANSACTION_CANCELLED', 'TRANSACTION_REJECTED',
+      'TRANSACTION_REJECTED_BANK', 'TRANSACTION_SENDSMS_FAILED',
+    ],
+  },
+  {
+    label: 'Refund Pending',
+    statuses: [
+      'PAYMENT_REFUND_REQUIRED', 'PAYMENT_REFUND_REQUIRED_BY_HUB', 'PROXY_PAYMENT_REFUND_REQUIRED',
+      'REMIT_BY_TELEPIN_REFUND_REQUIRED', 'REFUND_FAILED', 'PROXY_PAYMENT_REFUND_FAILED',
+    ],
+  },
+  {
+    label: 'Monitor',
+    statuses: ['TRANSACTION_REVERSED', 'REMIT_BY_TELEPIN_UNKNOWN'],
+  },
+  {
+    label: 'Completed',
+    statuses: [
+      'TRANSACTION_COMPLETED', 'TRANSACTION_SUCCESS', 'TRANSACTION_CONFIRMED', 'TRANSACTION_PAID',
+      'REFUNDED', 'REFUNDED_BY_HUB', 'PROXY_PAYMENT_REFUNDED',
+    ],
+  },
 ]
+
+const _groupedSet = new Set(STATUS_GROUPS.flatMap(g => g.statuses))
 
 function fmt(v: number | null | undefined, currency?: string | null) {
   if (v == null) return '—'
@@ -41,6 +80,7 @@ export function TransactionExplorer() {
   const [refInput, setRefInput] = useState('')
   const [errInput, setErrInput] = useState('')
   const [activeQuick, setActiveQuick] = useState<string | null>('1d')
+  const [popular, setPopular] = useState<string[]>(() => getPopularStatuses())
 
   function applyQuickRange(label: string, ms: number) {
     const now = new Date()
@@ -48,8 +88,16 @@ export function TransactionExplorer() {
     setFilters(f => ({ ...f, from_date: toSgtIso(new Date(now.getTime() - ms)), to_date: toSgtIso(now), page: 1 }))
   }
 
-  const { hubs, services } = useReference(filters.hub_id)
+  const { hubs, services, statuses } = useReference(filters.hub_id)
+  const statusCounts = useStatusCounts(filters.from_date, filters.to_date, filters.hub_id, filters.service_id)
   const { data, loading, error } = useTransactions(filters)
+
+  useEffect(() => {
+    if (data && data.total > 0 && filters.status.length > 0) {
+      recordStatusHits(filters.status)
+      setPopular(getPopularStatuses())
+    }
+  }, [data])
 
   function applySearch() {
     setFilters(f => ({
@@ -108,27 +156,91 @@ export function TransactionExplorer() {
             />
           </div>
 
-          {/* Status toggles */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-widest text-faint w-16">Status</span>
-            {COMMON_STATUSES.map(s => (
-              <button
-                key={s}
-                onClick={() => toggleStatus(s)}
-                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 transition-colors ${
-                  filters.status.includes(s)
-                    ? 'bg-primary text-primary-foreground ring-primary'
-                    : 'bg-subtle text-muted-foreground ring-border hover:ring-primary/40'
-                }`}
+          {/* Status filters */}
+          <div className="space-y-2">
+            {/* Popular pills */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-widest text-faint w-16">
+                <Star size={10} /> Top
+              </span>
+              {popular.length === 0 ? (
+                <span className="text-xs text-faint italic">No popular statuses yet — select statuses below to discover them</span>
+              ) : (
+                popular.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => toggleStatus(s)}
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 transition-colors ${
+                      filters.status.includes(s)
+                        ? 'bg-primary text-primary-foreground ring-primary'
+                        : 'bg-subtle text-muted-foreground ring-border hover:ring-primary/40'
+                    }`}
+                  >
+                    {s.replace(/_/g, ' ')}
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Status dropdown + active tags */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-faint w-16">Status</span>
+              <select
+                value=""
+                onChange={e => { if (e.target.value) toggleStatus(e.target.value) }}
+                className="rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
-                {s.replace(/_/g, ' ')}
-              </button>
-            ))}
-            {filters.status.length > 0 && (
-              <button onClick={() => setFilters(f => ({ ...f, status: [], page: 1 }))} className="text-xs text-muted-foreground hover:text-foreground">
-                clear
-              </button>
-            )}
+                <option value="">Add a status filter…</option>
+                {STATUS_GROUPS.map(group => {
+                  const options = group.statuses.filter(s =>
+                    statuses.includes(s) && !filters.status.includes(s)
+                  )
+                  if (options.length === 0) return null
+                  return (
+                    <optgroup key={group.label} label={group.label}>
+                      {options.map(s => {
+                        const count = statusCounts.get(s)
+                        const label = count != null
+                          ? `${s.replace(/_/g, ' ')} (${count.toLocaleString()})`
+                          : s.replace(/_/g, ' ')
+                        return <option key={s} value={s}>{label}</option>
+                      })}
+                    </optgroup>
+                  )
+                })}
+                {(() => {
+                  const others = statuses.filter(s =>
+                    !_groupedSet.has(s) && !filters.status.includes(s)
+                  )
+                  if (others.length === 0) return null
+                  return (
+                    <optgroup label="Other">
+                      {others.map(s => {
+                        const count = statusCounts.get(s)
+                        const label = count != null
+                          ? `${s.replace(/_/g, ' ')} (${count.toLocaleString()})`
+                          : s.replace(/_/g, ' ')
+                        return <option key={s} value={s}>{label}</option>
+                      })}
+                    </optgroup>
+                  )
+                })()}
+              </select>
+              {filters.status.map(s => (
+                <button
+                  key={s}
+                  onClick={() => toggleStatus(s)}
+                  className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary ring-1 ring-primary/30 hover:bg-red-500/15 hover:text-red-400 hover:ring-red-400/30 transition-colors"
+                >
+                  {s.replace(/_/g, ' ')} ×
+                </button>
+              ))}
+              {filters.status.length > 0 && (
+                <button onClick={() => setFilters(f => ({ ...f, status: [], page: 1 }))} className="text-xs text-muted-foreground hover:text-foreground">
+                  clear all
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Hub / Service filters */}
