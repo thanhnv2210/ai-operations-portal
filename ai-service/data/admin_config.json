@@ -1,0 +1,32 @@
+{
+  "thresholds": {
+    "failure_rate_warning": 0.05,
+    "failure_rate_critical": 0.1,
+    "processing_time_warning_s": 300,
+    "processing_time_critical_s": 600,
+    "min_transaction_volume_per_day": 10
+  },
+  "prompt_templates": [
+    {
+      "id": "tpl-summary",
+      "name": "Operational Summary",
+      "description": "Daily health summary sent to ops team",
+      "template": "Summarise the operational health for {{period}}. Highlight any hubs with failure rates above {{failure_rate_threshold}}% and any error codes appearing more than {{error_threshold}} times.",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "tpl-anomaly",
+      "name": "Anomaly Explanation",
+      "description": "Explains a detected anomaly to the ops team",
+      "template": "Explain the following anomaly in plain English for an operations team: {{anomaly_description}}. Include likely root causes and suggested next steps. Do not include PII.",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "tpl-trend",
+      "name": "Trend Observation",
+      "description": "Identifies trends over a rolling window",
+      "template": "Analyse transaction trends for the past {{window_days}} days. Identify volume growth/decline per hub, shifts in failure rates, and any emerging error patterns. Return a concise bullet-point report.",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

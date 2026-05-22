@@ -50,5 +50,5 @@
 - [x] Frontend: insights display
 
 ## Phase 6: Admin Configuration
-- [ ] API: CRUD for prompt templates + alert thresholds
-- [ ] Frontend: config form UI
+- [x] API: CRUD for prompt templates + alert thresholds
+- [x] Frontend: config form UI
