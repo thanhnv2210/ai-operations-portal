@@ -12,11 +12,16 @@ export function toSgtIso(d: Date): string {
 }
 
 /**
- * Formats a date string or Date object for display in SGT.
+ * Formats a date string for display in SGT.
+ * The backend returns naive ISO strings (no timezone suffix) that represent
+ * SGT wall-clock time. We append +08:00 before parsing so JavaScript does
+ * not misinterpret them as local or UTC time.
  */
 export function fmtSgt(d: string | null | undefined): string {
   if (!d) return '—'
-  return new Date(d).toLocaleString('en-SG', {
+  const hasOffset = d.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(d)
+  const iso = hasOffset ? d : `${d}+08:00`
+  return new Date(iso).toLocaleString('en-SG', {
     timeZone: 'Asia/Singapore',
     dateStyle: 'short',
     timeStyle: 'short',

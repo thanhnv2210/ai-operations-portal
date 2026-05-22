@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { useTransactionDetail } from '@/hooks/useTransactions'
 import { StatusBadge } from '@/components/StatusBadge'
+import { fmtSgt } from '@/lib/sgt'
 
 interface Props {
   transactionId: number | null
@@ -72,6 +73,8 @@ export function TransactionDrawer({ transactionId, onClose }: Props) {
               <Field label="Hub" value={detail.hub_name_resolved || detail.hub_name} />
               <Field label="Service" value={detail.service_name_resolved || detail.service_name} />
               <Field label="Partner Channel" value={detail.partner_id} />
+              <Field label="Created (SGT)" value={fmtSgt(detail.created_date)} />
+              <Field label="Updated (SGT)" value={fmtSgt(detail.updated_date)} />
             </Section>
 
             <div className="border-t border-border" />
@@ -122,7 +125,7 @@ export function TransactionDrawer({ transactionId, onClose }: Props) {
                       <span className={`absolute -left-[1.375rem] flex h-3 w-3 items-center justify-center rounded-full ring-2 ring-background ${i === audit.length - 1 ? 'bg-primary' : 'bg-subtle'}`} />
                       <div className="flex flex-col gap-0.5">
                         <time className="text-xs text-faint">
-                          {entry.audit_date ? new Date(entry.audit_date).toLocaleString() : '—'}
+                          {fmtSgt(entry.audit_date)}
                         </time>
                         <StatusBadge status={entry.status} />
                         {entry.hub_status && (
