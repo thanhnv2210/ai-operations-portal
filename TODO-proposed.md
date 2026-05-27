@@ -1,6 +1,6 @@
 # TODO — AI Operations Portal (Proposed)
 
-> Last updated: 2026-05-28
+> Last updated: 2026-05-28 (Phase 2 + Phase 3 implemented; all unit tests passing)
 > **Learning goal:** Text-to-SQL (Phase 2) → RAG Pipeline (Phase 3). Both skills target AI Engineer / Solution Architect roles per the workspace roadmap.
 
 ## Status Overview
@@ -14,9 +14,10 @@
 | Operational Dashboard (APIs + frontend) | Done |
 | Transaction Explorer (APIs + frontend) | Done |
 | AI chat + Insights Engine (basic context-injection) | Done |
-| Schema context layer (for Text-to-SQL) | Not started |
-| Text-to-SQL pipeline | Not started |
-| RAG pipeline | Not started |
+| Schema context layer (for Text-to-SQL) | Done |
+| Text-to-SQL pipeline | Done |
+| RAG pipeline | Done |
+| Unit tests (backend 101 + frontend 29) | Done |
 | Deployment | Not started |
 
 ---
@@ -76,21 +77,21 @@
 ### Schema Context Layer
 > The quality of Text-to-SQL is entirely determined by what schema context the LLM receives.
 
-- [ ] `app/schema_context/loader.py` — build compact schema string for LLM prompts from existing models:
+- [x] `app/schema_context/loader.py` — build compact schema string for LLM prompts from existing models:
   - **Whitelist** query-safe tables only: `remittance.transaction`, `service_management.remit_service`, `service_management.external_partner`, `ml_schema.country`, `ml_schema.ml_fx_rates`
   - **Strip PII columns**: `sender_msisdn`, `sender_fullname`, `sender_dob`, `sender_email`, `recipient_msisdn`, `recipient_fullname`, `recipient_dob`
   - Format: `table_name(col: type — note, ...)` — one table per line
-- [ ] `app/schema_context/status_ref.py` — `TransactionStatus` enum values grouped by phase (Payment, SOF, Remittance, Refund, Fraud) as a lookup string injected into every prompt; reuse `TransactionStatus` from existing `app/models/remittance.py`
-- [ ] `app/schema_context/relationships.py` — cross-schema join hints: e.g. `remittance.transaction.service_id → service_management.remit_service.remit_service_id`
+- [x] `app/schema_context/status_ref.py` — `TransactionStatus` enum values grouped by phase (Payment, SOF, Remittance, Refund, Fraud) as a lookup string injected into every prompt; reuse `TransactionStatus` from existing `app/models/remittance.py`
+- [x] `app/schema_context/relationships.py` — cross-schema join hints: e.g. `remittance.transaction.service_id → service_management.remit_service.remit_service_id`
 
 ### Text-to-SQL Pipeline
-- [ ] `app/services/text_to_sql.py` — full NL→SQL→result→explanation flow:
+- [x] `app/services/text_to_sql.py` — full NL→SQL→result→explanation flow:
   - **Step 1:** Build schema context (whitelisted tables, PII-stripped, status enum, join hints)
   - **Step 2:** Send to `claude-opus-4-6`; prompt specifies SELECT-only, PostgreSQL dialect, schema-qualified table names, few-shot examples. Use standard (non-thinking) mode by default — extended thinking is too slow for interactive use.
   - **Step 3:** Validate SQL — reject if contains `INSERT`, `UPDATE`, `DELETE`, `DROP`, `CREATE`, `TRUNCATE`; run `EXPLAIN` dry-run before executing to catch syntax/column errors
   - **Step 4:** Route DB — `remittance.*` / `customer.*` / `payment.*` → keycloak engine; `ml_schema.*` / `service_management.*` → ml_db engine; cross-DB → query both engines, join in Python (reuse `app/cross_db.py`)
   - **Step 5:** Send raw result rows + original question back to Claude for a plain-English 2–4 sentence explanation
-- [ ] Streaming — `client.messages.stream` + FastAPI `StreamingResponse` with `text/event-stream`; emit typed SSE events:
+- [x] Streaming — `client.messages.stream` + FastAPI `StreamingResponse` with `text/event-stream`; emit typed SSE events:
   ```
   data: {"type": "status", "text": "Generating SQL..."}
   data: {"type": "sql", "sql": "SELECT ..."}
@@ -98,22 +99,23 @@
   data: {"type": "token", "text": "There were..."}   ← streamed explanation tokens
   data: [DONE]
   ```
-- [ ] Structured error types: `sql_generation_failed` / `sql_validation_rejected` / `db_execution_error` / `no_results`; emit as `{"type": "error", "code": "...", "message": "..."}`
-- [ ] `app/routers/assistant.py` — `POST /api/v1/assistant/query` body: `{ "question": str }`, streamed SSE response
-- [ ] Few-shot SQL examples in prompt:
+- [x] Structured error types: `sql_generation_failed` / `sql_validation_rejected` / `db_execution_error` / `no_results`; emit as `{"type": "error", "code": "...", "message": "..."}`
+- [x] `app/routers/assistant.py` — `POST /api/v1/assistant/query` body: `{ "question": str }`, streamed SSE response
+- [x] Few-shot SQL examples in prompt:
   - "How many transactions failed today?" → `SELECT COUNT(*) FROM remittance.transaction WHERE status LIKE '%FAILED%' AND created_date::date = CURRENT_DATE`
   - "Failure rate by hub this month?" → group by `hub_name`, count success vs failed
   - "Top 5 corridors by volume this week?" → join `remittance.transaction` + `service_management.remit_service` on `service_id`
   - "Most common error codes last 7 days?" → group by `error_code` on `remittance.transaction`
 
 ### Frontend — AI Assistant (Text-to-SQL tab)
-- [ ] `src/pages/AiAssistant.tsx` — add a "Text-to-SQL" tab alongside the existing chat; keep existing chat untouched
-- [ ] Streaming render — consume SSE by `type`:
+- [x] `src/pages/AiAssistant.tsx` — add a "Text-to-SQL" tab alongside the existing chat; keep existing chat untouched
+- [x] Streaming render — consume SSE by `type`:
   - `status` → show a spinner with the status text
   - `sql` → render collapsible `<code>` block with generated SQL
   - `token` → stream explanation text in real time
   - `error` → show friendly message per code (`sql_validation_rejected`: "I can only run read queries")
-- [ ] Example question chips: "How many failures today?", "Top corridors this week", "Failure rate by hub"
+- [x] Example question chips: "How many failures today?", "Top corridors this week", "Failure rate by hub"
+- [x] `src/hooks/useTextToSql.ts` — `applyEvent` state reducer, `friendlyError` lookup, `useTextToSql` hook
 
 ---
 
@@ -123,54 +125,70 @@
 > Corpus: `docs/database-design.md` + operational runbooks. Real fintech schema docs — not Wikipedia or PDFs.
 
 ### Vector Store Setup
-- [ ] Add to `requirements.txt`: `chromadb`, `rank-bm25`, `ragas`; add `openai` as **optional** — only needed if `OPENAI_API_KEY` is set (embeddings); full Ollama fallback when unset
-- [ ] `app/rag/store.py` — ChromaDB client; persist to `./rag_data/`; collection: `ai_ops_portal_docs`
-- [ ] `app/rag/embedder.py` — `text-embedding-3-small` (OpenAI) when `OPENAI_API_KEY` present; batch up to 100 chunks per call
-  - Local fallback: Ollama `nomic-embed-text` at `localhost:11434/v1` when `OPENAI_API_KEY` unset
-- [ ] Add `OPENAI_API_KEY` (optional) to `.env.local.example`
+- [x] Add to `requirements.txt`: `chromadb==0.6.3`, `rank-bm25==0.2.2`, `openai==1.82.0`; `ragas` + `datasets` in `requirements-eval.txt`
+- [x] `app/rag/store.py` — ChromaDB `PersistentClient` (factory, not class in 0.6.3) at `./rag_data/`; collection: `ai_ops_portal_docs`; `record_ingestion()` writes `meta.json`
+- [x] `app/rag/embedder.py` — `text-embedding-3-small` (OpenAI) when `OPENAI_API_KEY` present; Ollama `nomic-embed-text` fallback via httpx
+- [x] `openai_api_key` optional field added to `app/config.py`
 
 ### Document Ingestion
-- [ ] `app/rag/ingestion/chunker.py` — Markdown chunking strategy:
+- [x] `app/rag/ingestion/chunker.py` — Markdown chunking strategy:
   - Split on `##` / `###` headers — section title becomes chunk metadata
-  - Max chunk: 500 tokens, 50-token overlap between adjacent chunks
-  - Metadata per chunk: `{ source_file, section_title, table_name }` — extract `table_name` when header matches `schema.table` pattern
-- [ ] `app/rag/ingestion/loader.py` — load: `docs/database-design.md` (primary), future runbooks/ADRs
-- [ ] `app/rag/ingestion/ingest.py` — CLI: `python -m app.rag.ingest` — load → chunk → embed → upsert; print chunk count
-- [ ] `GET /api/v1/rag/status` — return `{ doc_count, last_ingested_at, collection_name }`
+  - MAX_CHARS=2000, OVERLAP_CHARS=200 between adjacent chunks
+  - Metadata per chunk: `{ source_file, section_title, table_name }` — `_extract_table_name()` regex for `schema.table`
+- [x] `app/rag/ingestion/loader.py` — load: `docs/database-design.md` (relative to `ai-service/`)
+- [x] `app/rag/ingestion/ingest.py` — CLI: `python -m app.rag.ingest` — load → chunk → embed → upsert → `record_ingestion()`
+- [x] `GET /api/v1/rag/status` — return `{ doc_count, last_ingested_at, collection_name }`
 
 ### Hybrid Search (BM25 + Vector)
-- [ ] `app/rag/retriever.py`:
-  - **Vector search:** top-8 semantic matches from Chroma (cosine similarity)
-  - **BM25 search:** top-8 keyword matches using `rank_bm25.BM25Okapi` over all chunk texts
-  - **Merge:** Reciprocal Rank Fusion (RRF, k=60) — `score = 1/(rank + k)` summed across both lists; return top-6 unique chunks
-- [ ] Cache BM25 index in memory at startup; rebuild on new ingest
+- [x] `app/rag/retriever.py`:
+  - **Vector search:** top-8 semantic matches from Chroma (cosine similarity, distance→similarity: `1 - dist/2`)
+  - **BM25 search:** top-8 keyword matches using `rank_bm25.BM25Okapi`; zero-score results excluded
+  - **Merge:** Reciprocal Rank Fusion (RRF, k=60) — `score = 1/(rank + 1 + k)` summed; return top-6 unique chunks
+- [x] BM25 index cached in memory; `load_bm25_from_store()` called in FastAPI lifespan; `rebuild_bm25()` called after ingest
 
 ### RAG Chain
-- [ ] `app/rag/chain.py` — pipeline:
+- [x] `app/rag/chain.py` — pipeline:
   - Step 1: Hybrid retrieval → top-6 chunks with metadata
   - Step 2: Augmented prompt — inject chunks as numbered context blocks; instruct Claude to cite context block per claim
   - Step 3: Claude answers grounded strictly in retrieved context
   - Step 4: Return `{ answer, sources: [{ chunk_text, section_title, source_file, score }] }`
-- [ ] Grounding guard — if max retrieval score < 0.4, respond "Not enough relevant context found" — do not hallucinate
-- [ ] `POST /api/v1/rag/query` — body: `{ "question": str }`, response: `{ answer, sources }`
+- [x] Grounding guard — `SIMILARITY_THRESHOLD = 0.40`; if max vector score below threshold → "Not enough relevant context found"
+- [x] `POST /api/v1/rag/query` — body: `{ "question": str }`, response: `{ answer, sources }`
 
 ### RAG Evaluation
 > Most engineers can build RAG — few can measure it. This is the interview differentiator.
-- [ ] `tests/rag/golden_qa.json` — 15 Q&A pairs grounded in `docs/database-design.md`:
+- [x] `tests/rag/golden_qa.json` — 15 Q&A pairs grounded in `docs/database-design.md`:
   - "What columns carry PII in remittance.transaction?"
   - "What does hub_id in remittance.transaction reference?"
   - "How do you find all status changes for a transaction?"
   - "What payment methods does the system support?"
   - "Difference between remittance_amount and recipient_amount?"
   - (10 more covering other schemas/sections)
-- [ ] `scripts/eval_rag.py` — RAGAS metrics: `faithfulness`, `answer_relevance`, `context_recall`; print per-question + aggregate scores
-- [ ] **Target:** faithfulness > 0.85, context_recall > 0.80
-- [ ] `docs/rag-eval-results.md` — document score iterations when chunking/retrieval strategy changes
+- [x] `scripts/eval_rag.py` — RAGAS metrics: `faithfulness`, `answer_relevance`, `context_recall`; writes `docs/rag-eval-results.md`
+- [ ] **Target:** faithfulness > 0.85, context_recall > 0.80 — run eval after first full ingest against live DB docs
+- [ ] `docs/rag-eval-results.md` — populate with actual scores after running eval
 
 ### Frontend — Knowledge Base Query
-- [ ] `src/pages/KnowledgeBase.tsx` — separate page from AI Assistant (shows source citations)
-- [ ] Answer panel + source cards — each retrieved chunk as collapsible card with `section_title` + snippet
-- [ ] Example questions: "What tables contain transaction data?", "How does the payment flow work?"
+- [x] `src/pages/KnowledgeBase.tsx` — separate page from AI Assistant (shows source citations)
+- [x] Answer panel + source cards — each retrieved chunk as collapsible card with `section_title` + % match score
+- [x] Example question chips: "What tables contain transaction data?", "How does the payment flow work?"
+- [x] `src/App.tsx` — `knowledge` tab with `BookOpen` icon added to nav
+
+---
+
+## Unit Tests — Status
+
+| File | Tests | Status |
+|---|---|---|
+| `tests/test_text_to_sql.py` | 22 (`_validate`, `_detect_engine`) | ✅ passing |
+| `tests/test_schema_context.py` | 22 (loader, status_ref, relationships) | ✅ passing |
+| `tests/rag/test_chunker.py` | 16 (chunker, splitter, table name extraction) | ✅ passing |
+| `tests/rag/test_retriever.py` | 41 (tokenize, RRF merge, BM25 search) | ✅ passing |
+| `src/hooks/useTextToSql.test.ts` | 29 (applyEvent, friendlyError, SQL_SUGGESTED) | ✅ passing |
+| **Total** | **130** | **✅ 101 backend + 29 frontend** |
+
+Run backend: `cd ai-service && pytest tests/ -q`
+Run frontend: `cd frontend && npm test`
 
 ---
 
@@ -189,11 +207,11 @@
 
 | Skill | Where practiced | Done? |
 |---|---|---|
-| Schema-aware prompting (Text-to-SQL) | Phase 2 — `schema_context/` + few-shot prompt | [ ] |
-| LLM output validation / SQL safety guard | Phase 2 — `text_to_sql.py` validate + `EXPLAIN` dry-run | [ ] |
-| Cross-DB query routing in application code | Phase 2 — `text_to_sql.py` DB router + `cross_db.py` | [ ] |
-| Chunking strategies for technical docs | Phase 3 — `chunker.py` (header-based + overlap) | [ ] |
-| Embedding models (cloud vs local fallback) | Phase 3 — `embedder.py` (OpenAI / Ollama) | [ ] |
-| Hybrid search — BM25 + vector + RRF | Phase 3 — `retriever.py` | [ ] |
-| RAG evaluation (RAGAS faithfulness / context recall) | Phase 3 — `eval_rag.py` + golden QA dataset | [ ] |
+| Schema-aware prompting (Text-to-SQL) | Phase 2 — `schema_context/` + few-shot prompt | ✅ |
+| LLM output validation / SQL safety guard | Phase 2 — `text_to_sql.py` `_validate` + `_detect_engine` | ✅ |
+| Cross-DB query routing in application code | Phase 2 — `text_to_sql.py` DB router + `cross_db.py` | ✅ |
+| Chunking strategies for technical docs | Phase 3 — `chunker.py` (header-based, MAX_CHARS=2000, overlap) | ✅ |
+| Embedding models (cloud vs local fallback) | Phase 3 — `embedder.py` (OpenAI / Ollama) | ✅ |
+| Hybrid search — BM25 + vector + RRF | Phase 3 — `retriever.py` (RRF k=60, threshold 0.40) | ✅ |
+| RAG evaluation (RAGAS faithfulness / context recall) | Phase 3 — `eval_rag.py` + 15-pair golden QA dataset | ✅ (script ready; scores pending live run) |
 | LLM tracing / observability | Phase 4 — Langfuse integration | [ ] |
