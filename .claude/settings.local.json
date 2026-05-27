@@ -80,7 +80,17 @@
       "Bash(pytest tests/ -v --tb=short)",
       "Bash(pytest tests/ -q)",
       "Bash(pytest tests/rag/test_retriever.py::TestBm25::test_single_chunk_corpus -v --tb=long)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(m[''''name'''']\\) for m in data.get\\(''''models'''',[]\\)]\")",
+      "Bash(python -m app.rag.ingest)",
+      "Bash(python -m app.rag.ingestion.ingest)",
+      "Bash(pip list:*)",
+      "Bash(python -c \"from ragas import evaluate; print\\(''RAGAS OK''\\)\")",
+      "Bash(python -c \"import langchain_community.chat_models; print\\(dir\\(langchain_community.chat_models\\)\\)\")",
+      "Bash(python -c \"from ragas import evaluate; print\\(''''RAGAS OK''''\\)\")",
+      "Bash(python scripts/eval_rag.py)",
+      "Bash(source /Users/ThanhNguyen/AI_WS/ai-operations-portal/ai-service/.venv/bin/activate)",
+      "Bash(echo \"venv activated: $VIRTUAL_ENV\")"
     ]
   }
 }

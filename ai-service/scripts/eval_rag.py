@@ -4,8 +4,13 @@ Measures retrieval and answer quality against a golden Q&A dataset.
 
 Prerequisites:
     pip install -r requirements-eval.txt
-    python -m app.rag.ingest              # ingest docs first
-    export ANTHROPIC_API_KEY=...          # or OPENAI_API_KEY for RAGAS evaluator
+    python -m app.rag.ingestion.ingest     # ingest docs first
+    ANTHROPIC_API_KEY must be set          # used both by RAG chain and RAGAS evaluator
+
+LLM used for RAGAS evaluation:
+    Uses Ollama (qwen2.5:7b) via the OpenAI-compatible API at localhost:11434/v1.
+    Requires Ollama to be running locally with qwen2.5:7b pulled.
+    Override with RAGAS_OLLAMA_MODEL env var.
 
 Usage (from ai-service/ directory):
     python scripts/eval_rag.py
@@ -33,8 +38,40 @@ if "APP_ENV" not in os.environ:
     os.environ["APP_ENV"] = "local"
 
 
+def _make_ragas_llm():
+    """Build a RAGAS-compatible LLM using Ollama's OpenAI-compatible endpoint."""
+    from langchain_openai import ChatOpenAI
+    from ragas.llms.base import LangchainLLMWrapper
+
+    model = os.environ.get("RAGAS_OLLAMA_MODEL", "qwen2.5:7b")
+    lc_llm = ChatOpenAI(
+        model=model,
+        base_url="http://localhost:11434/v1",
+        api_key="ollama",          # Ollama ignores the key but langchain requires it non-empty
+        temperature=0,
+    )
+    return LangchainLLMWrapper(lc_llm)
+
+
+def _make_ragas_embeddings():
+    """Build a RAGAS-compatible embeddings using Ollama's OpenAI-compatible endpoint."""
+    from langchain_openai import OpenAIEmbeddings
+    from ragas.embeddings.base import LangchainEmbeddingsWrapper
+
+    lc_emb = OpenAIEmbeddings(
+        model="nomic-embed-text",
+        base_url="http://localhost:11434/v1",
+        api_key="ollama",
+    )
+    return LangchainEmbeddingsWrapper(lc_emb)
+
+
 async def collect_results(qa_pairs: list[dict]) -> list[dict]:
     """Run the RAG chain on every question and collect answers + contexts."""
+    # BM25 index is normally built in FastAPI lifespan — load it explicitly here.
+    from app.rag.retriever import load_bm25_from_store
+    load_bm25_from_store()
+
     from app.rag.chain import query as rag_query
 
     rows = []
@@ -45,11 +82,12 @@ async def collect_results(qa_pairs: list[dict]) -> list[dict]:
 
         result = await rag_query(question)
         contexts = [s["chunk_text"] for s in result["sources"]]
+        # RAGAS 0.2.x field names
         rows.append({
-            "question":     question,
-            "answer":       result["answer"],
-            "contexts":     contexts,
-            "ground_truth": ground_truth,
+            "user_input":         question,
+            "response":           result["answer"],
+            "retrieved_contexts": contexts,
+            "reference":          ground_truth,
         })
     return rows
 
@@ -60,22 +98,39 @@ def run_ragas(rows: list[dict]) -> None:
     from ragas import evaluate
     from ragas.metrics import answer_relevancy, context_recall, faithfulness
 
+    ragas_llm = _make_ragas_llm()
+    ragas_emb = _make_ragas_embeddings()
+
+    # Inject custom LLM + embeddings into each metric
+    metrics = [faithfulness, answer_relevancy, context_recall]
+    for m in metrics:
+        m.llm = ragas_llm
+        if hasattr(m, "embeddings"):
+            m.embeddings = ragas_emb
+
     dataset = Dataset.from_list(rows)
     result = evaluate(
         dataset,
-        metrics=[faithfulness, answer_relevancy, context_recall],
+        metrics=metrics,
     )
 
     print("\n" + "=" * 60)
     print("RAGAS EVALUATION RESULTS")
     print("=" * 60)
     df = result.to_pandas()
-    print(df[["question", "faithfulness", "answer_relevancy", "context_recall"]].to_string(index=False))
+
+    # RAGAS 0.2.x uses user_input / response / retrieved_contexts / reference
+    score_cols = [c for c in ["faithfulness", "answer_relevancy", "context_recall"] if c in df.columns]
+    disp_cols = ["user_input"] + score_cols
+    print(df[disp_cols].to_string(index=False))
 
     print("\nAGGREGATE SCORES:")
-    print(f"  faithfulness    : {df['faithfulness'].mean():.3f}  (target > 0.85)")
-    print(f"  answer_relevancy: {df['answer_relevancy'].mean():.3f}")
-    print(f"  context_recall  : {df['context_recall'].mean():.3f}  (target > 0.80)")
+    faith  = df["faithfulness"].mean()    if "faithfulness"    in df.columns else float("nan")
+    relev  = df["answer_relevancy"].mean() if "answer_relevancy" in df.columns else float("nan")
+    recall = df["context_recall"].mean()  if "context_recall"  in df.columns else float("nan")
+    print(f"  faithfulness    : {faith:.3f}   (target > 0.85)")
+    print(f"  answer_relevancy: {relev:.3f}")
+    print(f"  context_recall  : {recall:.3f}  (target > 0.80)")
     print("=" * 60)
 
     # Write results to docs/rag-eval-results.md
@@ -83,23 +138,24 @@ def run_ragas(rows: list[dict]) -> None:
     from datetime import datetime, timezone
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
-        f"# RAG Evaluation Results\n",
+        "# RAG Evaluation Results\n",
         f"_Last run: {timestamp}_\n\n",
         "## Aggregate Scores\n\n",
         "| Metric | Score | Target |\n",
         "|---|---|---|\n",
-        f"| faithfulness    | {df['faithfulness'].mean():.3f}    | > 0.85 |\n",
-        f"| answer_relevancy | {df['answer_relevancy'].mean():.3f} | — |\n",
-        f"| context_recall  | {df['context_recall'].mean():.3f}   | > 0.80 |\n\n",
+        f"| faithfulness     | {faith:.3f}  | > 0.85 |\n",
+        f"| answer_relevancy | {relev:.3f}  | — |\n",
+        f"| context_recall   | {recall:.3f} | > 0.80 |\n\n",
         "## Per-Question Results\n\n",
         "| Question | faithfulness | answer_relevancy | context_recall |\n",
         "|---|---|---|---|\n",
     ]
     for _, row in df.iterrows():
-        q = row["question"][:60].replace("|", "\\|")
-        lines.append(
-            f"| {q} | {row['faithfulness']:.3f} | {row['answer_relevancy']:.3f} | {row['context_recall']:.3f} |\n"
-        )
+        q = str(row.get("user_input", ""))[:60].replace("|", "\\|")
+        f_val = f"{row['faithfulness']:.3f}"    if "faithfulness"    in df.columns else "n/a"
+        r_val = f"{row['answer_relevancy']:.3f}" if "answer_relevancy" in df.columns else "n/a"
+        c_val = f"{row['context_recall']:.3f}"  if "context_recall"  in df.columns else "n/a"
+        lines.append(f"| {q} | {f_val} | {r_val} | {c_val} |\n")
     results_path.write_text("".join(lines))
     print(f"\nResults written to {results_path.resolve()}")
 
