@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import type { StatusDistributionData } from '@/types/dashboard'
 
 // ─── Standard grouping ────────────────────────────────────────────────────────
@@ -114,9 +114,10 @@ const INITIAL_VISIBLE = 10
 
 interface Props {
   data: StatusDistributionData
+  onViewTransactions?: (statuses: string[]) => void
 }
 
-export function StatusDistributionChart({ data }: Props) {
+export function StatusDistributionChart({ data, onViewTransactions }: Props) {
   const [mode, setMode]              = useState<ViewMode>('standard')
   const [showAll, setShowAll]        = useState(false)
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
@@ -229,6 +230,17 @@ export function StatusDistributionChart({ data }: Props) {
           <button className="underline hover:text-foreground" onClick={() => setActiveGroup(null)}>
             clear filter
           </button>
+          {onViewTransactions && (
+            <>
+              {' · '}
+              <button
+                className="inline-flex items-center gap-1 underline hover:text-foreground"
+                onClick={() => onViewTransactions(filtered.map(r => r.status))}
+              >
+                View in Explorer <ExternalLink size={10} />
+              </button>
+            </>
+          )}
         </p>
       )}
 
@@ -239,7 +251,7 @@ export function StatusDistributionChart({ data }: Props) {
           const pct  = ((row.count / total) * 100).toFixed(1)
           const barW = Math.round((row.count / maxCount) * 100)
           return (
-            <div key={row.status} className="flex items-center gap-3">
+            <div key={row.status} className="group flex items-center gap-3">
               <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 w-52 truncate ${meta.badge}`}>
                 {row.status.replace(/_/g, ' ')}
               </span>
@@ -252,6 +264,17 @@ export function StatusDistributionChart({ data }: Props) {
               <span className="shrink-0 w-10 text-right text-xs text-muted-foreground tabular-nums">
                 {pct}%
               </span>
+              {onViewTransactions ? (
+                <button
+                  onClick={() => onViewTransactions([row.status])}
+                  title="View in Transaction Explorer"
+                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                >
+                  <ExternalLink size={11} />
+                </button>
+              ) : (
+                <span className="shrink-0 w-[11px]" />
+              )}
             </div>
           )
         })}

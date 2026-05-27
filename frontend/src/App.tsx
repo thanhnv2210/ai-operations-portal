@@ -18,6 +18,14 @@ const TABS: { id: Tab; label: string; Icon: typeof LayoutDashboard }[] = [
 
 function Shell() {
   const [tab, setTab] = useState<Tab>('dashboard')
+  const [txInitStatuses, setTxInitStatuses] = useState<string[]>([])
+  const [txKey, setTxKey] = useState(0)
+
+  function viewTransactions(statuses: string[]) {
+    setTxInitStatuses(statuses)
+    setTxKey(k => k + 1)
+    setTab('transactions')
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -46,8 +54,8 @@ function Shell() {
       </nav>
 
       {/* Page content */}
-      {tab === 'dashboard'    && <Dashboard />}
-      {tab === 'transactions' && <TransactionExplorer />}
+      {tab === 'dashboard'    && <Dashboard onViewTransactions={viewTransactions} />}
+      {tab === 'transactions' && <TransactionExplorer key={txKey} initialStatuses={txInitStatuses} />}
       {tab === 'ai'           && <AiAssistant />}
       {tab === 'admin'        && <AdminConfig />}
     </div>

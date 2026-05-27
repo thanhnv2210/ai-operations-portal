@@ -74,8 +74,16 @@ function fmt(v: number | null | undefined, currency?: string | null) {
 }
 
 
-export function TransactionExplorer() {
-  const [filters, setFilters] = useState<TransactionFilters>(defaultFilters)
+interface TransactionExplorerProps {
+  initialStatuses?: string[]
+}
+
+export function TransactionExplorer({ initialStatuses }: TransactionExplorerProps) {
+  const [filters, setFilters] = useState<TransactionFilters>(() =>
+    initialStatuses && initialStatuses.length > 0
+      ? { ...defaultFilters, status: initialStatuses }
+      : defaultFilters
+  )
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [refInput, setRefInput] = useState('')
   const [errInput, setErrInput] = useState('')

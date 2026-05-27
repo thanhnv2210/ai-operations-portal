@@ -40,7 +40,11 @@ function SectionError({ label, message }: { label: string; message: string }) {
   )
 }
 
-export function Dashboard() {
+interface DashboardProps {
+  onViewTransactions?: (statuses: string[]) => void
+}
+
+export function Dashboard({ onViewTransactions }: DashboardProps) {
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters)
   const {
     overview, volumeTrend, statusDistribution, processingTime, hubBreakdown,
@@ -113,7 +117,7 @@ export function Dashboard() {
         {/* Status distribution */}
         {loadingStatus  ? <SectionSkeleton height="h-72" />
           : errors.status ? <SectionError label="status distribution" message={errors.status} />
-          : statusDistribution ? <StatusDistributionChart data={statusDistribution} />
+          : statusDistribution ? <StatusDistributionChart data={statusDistribution} onViewTransactions={onViewTransactions} />
           : null}
 
         {/* Hub breakdown */}
