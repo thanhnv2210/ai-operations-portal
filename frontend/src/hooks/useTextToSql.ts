@@ -45,7 +45,7 @@ export function friendlyError(code: string, fallback: string): string {
   return ERROR_MESSAGES[code] ?? fallback
 }
 
-function applyEvent(prev: TextToSqlState, event: SseEvent): TextToSqlState {
+export function applyEvent(prev: TextToSqlState, event: SseEvent): TextToSqlState {
   switch (event.type) {
     case 'status':
       return { ...prev, status: event.text ?? '' }

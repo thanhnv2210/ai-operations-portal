@@ -27,3 +27,7 @@ openai==1.82.0
 
 # Utilities
 python-multipart==0.0.20
+
+# Testing
+pytest==8.3.5
+pytest-asyncio==0.25.3

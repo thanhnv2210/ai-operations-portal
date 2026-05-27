@@ -74,7 +74,13 @@
       "Bash(python -c \":*)",
       "Bash(npx tsc:*)",
       "Bash(pip install:*)",
-      "Bash(python3 -c \"import chromadb; print\\(chromadb.__version__\\); print\\(type\\(chromadb.PersistentClient\\)\\)\")"
+      "Bash(python3 -c \"import chromadb; print\\(chromadb.__version__\\); print\\(type\\(chromadb.PersistentClient\\)\\)\")",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(pytest tests/ -v --tb=short)",
+      "Bash(pytest tests/ -q)",
+      "Bash(pytest tests/rag/test_retriever.py::TestBm25::test_single_chunk_corpus -v --tb=long)",
+      "Bash(npm test:*)"
     ]
   }
 }
