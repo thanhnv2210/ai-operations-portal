@@ -1,0 +1,184 @@
+@startuml rag-pipeline
+title RAG Pipeline — Ingestion & Query
+
+skinparam backgroundColor #FAFAFA
+skinparam sequence {
+    ArrowColor #444
+    ActorBorderColor #444
+    LifeLineBorderColor #888
+    ParticipantBackgroundColor #EEF2FF
+    ParticipantBorderColor #6366F1
+    BoxBackgroundColor #F0F4FF
+    BoxBorderColor #C7D2FE
+    NoteBackgroundColor #FEF9C3
+    NoteBorderColor #EAB308
+}
+
+'--------------------------------------------------------------
+' PART 1 — INGESTION (offline, run once or on doc change)
+'--------------------------------------------------------------
+
+box "Ingestion Flow (offline — run: python -m app.rag.ingest)" #F0FFF4
+    participant "Markdown Docs\n(database-design.md)" as DOCS  #D1FAE5
+    participant "Chunker"   as CHK  #A7F3D0
+    participant "Embedder"  as EMB  #6EE7B7
+    participant "ChromaDB\n(vector store)"  as VDB  #34D399
+    participant "BM25 Index\n(in-memory)"   as BM25 #34D399
+end box
+
+== Ingestion ==
+
+DOCS ->  CHK  : raw Markdown text
+note right of CHK
+  Strategy: split on ## / ### headers
+  - Each section = one or more chunks
+  - Max 500 tokens per chunk
+  - 50-token overlap between adjacent chunks
+  - Metadata attached per chunk:
+      source_file, section_title, table_name
+  Example chunk:
+    section: "remittance.transaction"
+    text: "Primary operational table.
+           Columns: internal_transaction_id (PK),
+           status, hub_id, service_id,
+           remittance_amount ..."
+end note
+CHK  --> DOCS : chunks[ ] with metadata
+
+CHK  ->  EMB  : chunk texts (batch ≤ 100)
+note right of EMB
+  If OPENAI_API_KEY set:
+    model: text-embedding-3-small (cloud)
+  Else (local fallback):
+    model: nomic-embed-text via
+    Ollama at localhost:11434/v1
+end note
+EMB  --> CHK  : embeddings[ ] (float vectors)
+
+CHK  ->  VDB  : upsert chunks + embeddings\n(collection: ai_ops_portal_docs)
+CHK  ->  BM25 : build BM25Okapi index\nover all chunk texts
+BM25 --> CHK  : index cached in memory
+
+note over VDB, BM25
+  GET /api/v1/rag/status
+  → { doc_count, last_ingested_at, collection_name }
+end note
+
+@enduml
+
+@startuml rag-query
+title RAG Pipeline — Query Flow
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam backgroundColor #FAFAFA
+skinparam sequence {
+    ArrowColor #444
+    ActorBorderColor #444
+    LifeLineBorderColor #888
+    ParticipantBackgroundColor #EEF2FF
+    ParticipantBorderColor #6366F1
+    BoxBackgroundColor #F0F4FF
+    BoxBorderColor #C7D2FE
+    NoteBackgroundColor #FEF9C3
+    NoteBorderColor #EAB308
+}
+
+actor       User         as U
+participant "Frontend\nKnowledgeBase page" as FE  #EEF2FF
+participant "FastAPI\nai-service"          as API #EEF2FF
+participant "Retriever\n(hybrid search)"  as RTV #DBEAFE
+participant "ChromaDB"   as VDB  #D1FAE5
+participant "BM25 Index" as BM25 #D1FAE5
+participant "claude-opus-4-6" as LLM #FCE7F3
+
+'--------------------------------------------------------------
+' PART 2 — QUERY (runtime, per user request)
+'--------------------------------------------------------------
+
+== Step 1: User asks a knowledge question ==
+
+U   ->  FE  : "What columns carry PII\nin remittance.transaction?"
+FE  ->  API : POST /api/v1/rag/query\n{ "question": "..." }
+
+== Step 2: Embed the question ==
+
+API ->  RTV : question text
+RTV ->  RTV : embed question\n(same model used at ingestion time)
+
+== Step 3: Dual retrieval — vector + BM25 ==
+
+RTV ->  VDB  : cosine similarity search\n(top-8 semantic matches)
+VDB --> RTV  : ranked chunks [ ] with scores
+
+RTV ->  BM25 : keyword search — BM25Okapi\n(top-8 term frequency matches)
+BM25 --> RTV : ranked chunks [ ]
+
+== Step 4: Merge with Reciprocal Rank Fusion ==
+
+RTV ->  RTV  : RRF merge
+note right of RTV
+  Reciprocal Rank Fusion (k=60):
+
+  For each chunk in both lists:
+    rrf_score += 1 / (rank + k)
+
+  Final ranking = sum of rrf_scores
+  across vector list + BM25 list.
+
+  Return top-6 unique chunks.
+
+  Why RRF?
+  - Vector search is good for semantic
+    similarity ("PII", "sensitive data")
+  - BM25 is good for exact terms
+    ("sender_msisdn", "recipient_fullname")
+  - RRF combines both without tuning
+    a fusion weight hyperparameter.
+end note
+RTV --> API  : top-6 chunks\n[ { chunk_text, section_title, source_file, score } ]
+
+== Step 5: Grounding guard ==
+
+alt max retrieval score < 0.4
+    API --> FE : { answer: "Not enough relevant\ncontext found.", sources: [] }
+    FE  --> U  : "Not enough relevant context found."
+    note right of API
+      Guard prevents hallucination:
+      if the docs don't contain the answer,
+      Claude is not asked — silence is safer
+      than a confident wrong answer.
+    end note
+end
+
+== Step 6: Claude answers grounded in context ==
+
+API ->  LLM : system prompt + numbered context blocks\n+ user question
+note right of LLM
+  Prompt structure:
+  ---
+  You are a technical assistant. Answer
+  ONLY using the context below. Cite the
+  context block number for each claim.
+
+  [1] section: remittance.transaction
+  text: "PII columns: sender_msisdn,
+  sender_fullname, sender_dob,
+  sender_email, recipient_msisdn..."
+
+  [2] section: Data Sources
+  text: "PII columns — mask in logs
+  and AI prompts..."
+
+  Question: What columns carry PII?
+  ---
+end note
+
+LLM --> API : answer text (with [1], [2] citations)
+
+== Step 7: Return answer + source cards ==
+
+API --> FE  : { answer: "The PII columns are...\n[1][2]",\n  sources: [ {chunk, section, score}, ... ] }
+FE  --> U   : answer text\n+ collapsible source cards\n  (section_title + snippet per chunk)
+
+@enduml

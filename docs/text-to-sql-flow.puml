@@ -1,0 +1,140 @@
+@startuml text-to-sql-flow
+title Text-to-SQL Pipeline
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam backgroundColor #FAFAFA
+skinparam sequence {
+    ArrowColor #444
+    ActorBorderColor #444
+    LifeLineBorderColor #888
+    ParticipantBackgroundColor #EEF2FF
+    ParticipantBorderColor #6366F1
+    BoxBackgroundColor #F0F4FF
+    BoxBorderColor #C7D2FE
+    NoteBackgroundColor #FEF9C3
+    NoteBorderColor #EAB308
+}
+
+actor       User          as U
+participant "Frontend"    as FE  #EEF2FF
+participant "FastAPI\nai-service" as API #EEF2FF
+participant "Schema\nContext Layer"  as SCL #DBEAFE
+participant "claude-opus-4-6"        as LLM #FCE7F3
+database    "keycloak DB\n(remittance / payment)" as KDB #D1FAE5
+database    "ml_db\n(ml_schema / service_mgmt)"   as MDB #D1FAE5
+
+== Step 1: User asks a natural language question ==
+
+U   ->  FE  : "How many transactions failed today\nbroken down by hub?"
+FE  ->  API : POST /api/v1/assistant/query\n{ "question": "..." }
+API ->  FE  : SSE stream open (text/event-stream)
+
+== Step 2: Build schema context ==
+
+API ->  SCL : build_schema_context()
+note right of SCL
+  Whitelisted tables only:
+  - remittance.transaction
+  - service_management.remit_service
+  - service_management.external_partner
+  - ml_schema.country
+  - ml_schema.ml_fx_rates
+
+  PII columns stripped:
+  sender_msisdn, sender_fullname,
+  sender_dob, recipient_msisdn,
+  recipient_fullname, recipient_dob
+
+  Join hints:
+  transaction.service_id
+    → remit_service.remit_service_id
+end note
+SCL --> API : compact schema string\n+ status enum groups\n+ join hints
+
+API --> FE  : {type:"status", text:"Generating SQL..."}
+
+== Step 3: Claude generates SQL ==
+
+API ->  LLM : system prompt + schema context\n+ few-shot examples + user question
+note right of LLM
+  Few-shot examples in prompt:
+  Q: "failures today by hub?"
+  A: SELECT hub_name, COUNT(*) ...
+     FROM remittance.transaction
+     WHERE status LIKE '%FAILED%'
+     AND created_date::date = CURRENT_DATE
+     GROUP BY hub_name
+end note
+LLM --> API : generated SQL string
+
+API --> FE  : {type:"sql", sql:"SELECT hub_name, COUNT(*) ..."}
+
+== Step 4: Validate SQL ==
+
+API ->  API : safety check — reject if\nINSERT / UPDATE / DELETE /\nDROP / CREATE / TRUNCATE
+
+alt SQL contains write operation
+    API --> FE : {type:"error", code:"sql_validation_rejected",\nmessage:"I can only run read queries"}
+    FE  --> U  : "I can only run read queries"
+else SQL is SELECT-only
+    API ->  KDB : EXPLAIN <generated SQL> (dry-run)
+    note right of KDB
+      EXPLAIN forces the DB planner to
+      parse and validate the SQL without
+      executing it — catches bad column
+      names and syntax errors cheaply.
+    end note
+    alt EXPLAIN fails (bad column / syntax)
+        KDB --> API : PlannerError
+        API --> FE  : {type:"error", code:"sql_generation_failed",\nmessage:"Could not generate valid SQL"}
+        FE  --> U   : error message
+    end
+end
+
+== Step 5: Route to correct database engine ==
+
+note over API
+  DB Router:
+  - remittance.* / customer.* / payment.*  → keycloak engine
+  - ml_schema.* / service_management.*     → ml_db engine
+  - cross-schema query                     → query both, join in Python
+end note
+
+alt query targets keycloak schema
+    API ->  KDB : execute SQL
+    KDB --> API : result rows
+else query targets ml_db schema
+    API ->  MDB : execute SQL
+    MDB --> API : result rows
+else cross-DB query
+    API ->  KDB : sub-query (keycloak tables)
+    KDB --> API : partial rows
+    API ->  MDB : sub-query (ml_db tables)
+    MDB --> API : partial rows
+    API ->  API : merge results in Python
+end
+
+alt no rows returned
+    API --> FE : {type:"error", code:"no_results",\nmessage:"No data found for that query"}
+end
+
+== Step 6: Claude explains the result ==
+
+API ->  LLM : original question + result rows
+note right of LLM
+  "Given this data, explain in 2-4
+  sentences what it means for the
+  operations team. Be concise and
+  actionable."
+end note
+
+LLM --> API : explanation tokens (streaming)
+API --> FE  : {type:"token", text:"Today there were..."} x N
+API --> FE  : [DONE]
+
+== Rendered in Frontend ==
+
+FE  --> U   : SQL block (collapsible) +\nexplanation text (streamed)
+
+@enduml
