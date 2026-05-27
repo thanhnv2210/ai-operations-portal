@@ -1,0 +1,7 @@
+# Evaluation dependencies — not needed for the runtime service.
+# Install with: pip install -r requirements-eval.txt
+#
+# Usage: python scripts/eval_rag.py
+
+ragas==0.2.15
+datasets==3.6.0

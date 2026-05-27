@@ -18,5 +18,12 @@ httpx==0.28.1
 # AI
 anthropic==0.42.0
 
+# RAG — vector store + hybrid search
+chromadb==0.6.3
+rank-bm25==0.2.2
+
+# RAG — embeddings (openai is optional: used when OPENAI_API_KEY is set)
+openai==1.82.0
+
 # Utilities
 python-multipart==0.0.20

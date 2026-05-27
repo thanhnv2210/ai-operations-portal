@@ -15,6 +15,7 @@ import app.config_store as config_store  # noqa: E402
 from app.cache import get_cache, load as load_cache  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.database import dispose_engines, get_ml_db, init_engines  # noqa: E402
+from app.rag.retriever import load_bm25_from_store  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,6 +34,9 @@ async def lifespan(app: FastAPI):
     # Populate reference data cache from ml_db
     async for ml_session in get_ml_db():
         await load_cache(ml_session)
+
+    # Build BM25 index from ChromaDB (no-op if collection is empty before first ingest)
+    load_bm25_from_store()
 
     yield
 
@@ -64,11 +68,13 @@ def create_app() -> FastAPI:
     from app.routers.ai import router as ai_router
     from app.routers.assistant import router as assistant_router
     from app.routers.dashboard import router as dashboard_router
+    from app.routers.rag import router as rag_router
     from app.routers.transactions import router as transactions_router
     app.include_router(dashboard_router)
     app.include_router(transactions_router)
     app.include_router(ai_router)
     app.include_router(assistant_router)
+    app.include_router(rag_router)
     app.include_router(admin_router)
 
     @app.get("/health", tags=["ops"])

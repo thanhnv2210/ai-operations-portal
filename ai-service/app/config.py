@@ -34,6 +34,10 @@ class Settings(BaseSettings):
 
     # --- AI ---
     anthropic_api_key: str = Field(..., description="Anthropic API key")
+    openai_api_key: str | None = Field(
+        default=None,
+        description="OpenAI API key (optional — used for RAG embeddings via text-embedding-3-small)",
+    )
     anthropic_model: str = Field(
         default="claude-opus-4-6",
         description="Primary Anthropic model ID",

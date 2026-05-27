@@ -1,19 +1,21 @@
 import { useState } from 'react'
-import { Bot, LayoutDashboard, Search, Settings } from 'lucide-react'
+import { BookOpen, Bot, LayoutDashboard, Search, Settings } from 'lucide-react'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AdminConfig } from '@/pages/AdminConfig'
 import { AiAssistant } from '@/pages/AiAssistant'
 import { Dashboard } from '@/pages/Dashboard'
+import { KnowledgeBase } from '@/pages/KnowledgeBase'
 import { TransactionExplorer } from '@/pages/TransactionExplorer'
 
-type Tab = 'dashboard' | 'transactions' | 'ai' | 'admin'
+type Tab = 'dashboard' | 'transactions' | 'ai' | 'knowledge' | 'admin'
 
 const TABS: { id: Tab; label: string; Icon: typeof LayoutDashboard }[] = [
-  { id: 'dashboard',    label: 'Dashboard',    Icon: LayoutDashboard },
-  { id: 'transactions', label: 'Transactions', Icon: Search },
-  { id: 'ai',          label: 'AI Assistant', Icon: Bot },
-  { id: 'admin',       label: 'Admin',        Icon: Settings },
+  { id: 'dashboard',    label: 'Dashboard',       Icon: LayoutDashboard },
+  { id: 'transactions', label: 'Transactions',    Icon: Search },
+  { id: 'ai',          label: 'AI Assistant',    Icon: Bot },
+  { id: 'knowledge',   label: 'Knowledge Base',  Icon: BookOpen },
+  { id: 'admin',       label: 'Admin',           Icon: Settings },
 ]
 
 function Shell() {
@@ -57,6 +59,7 @@ function Shell() {
       {tab === 'dashboard'    && <Dashboard onViewTransactions={viewTransactions} />}
       {tab === 'transactions' && <TransactionExplorer key={txKey} initialStatuses={txInitStatuses} />}
       {tab === 'ai'           && <AiAssistant />}
+      {tab === 'knowledge'    && <KnowledgeBase />}
       {tab === 'admin'        && <AdminConfig />}
     </div>
   )

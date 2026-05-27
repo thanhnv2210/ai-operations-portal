@@ -1,0 +1,62 @@
+[
+  {
+    "question": "What columns carry PII in remittance.transaction?",
+    "ground_truth": "The PII columns in remittance.transaction are: sender_msisdn, sender_fullname, sender_dob, sender_email, recipient_msisdn, recipient_fullname, and recipient_dob. These are masked in application logs."
+  },
+  {
+    "question": "What does hub_id in remittance.transaction reference?",
+    "ground_truth": "hub_id references service_management.external_partner.external_partner_id. It identifies which hub processed the transaction (TELEPIN, WU, THUNES, or TRANGLO)."
+  },
+  {
+    "question": "How do you find all status changes for a transaction?",
+    "ground_truth": "Query remittance.transaction_aud, which is a Hibernate Envers audit table containing the full history of every status change. It has the same columns as transaction plus rev (revision number), revtype (0=insert, 1=update, 2=delete), audit_date, and salt."
+  },
+  {
+    "question": "What is the difference between remittance_amount and recipient_amount?",
+    "ground_truth": "remittance_amount is the amount in the sender's currency (SGD). recipient_amount is the amount in the destination/recipient currency (e.g. PHP, MYR). The difference reflects the FX conversion."
+  },
+  {
+    "question": "What does service_type mean in remit_service?",
+    "ground_truth": "service_type is an integer that categorises the receiving channel: 1 = mobile wallet, 2 = bank transfer, 3 = WeChat. It drives how the receiving side processes the funds."
+  },
+  {
+    "question": "What is the relationship between payment.ml_m_sof_payment and remittance.transaction?",
+    "ground_truth": "payment.ml_m_sof_payment has a one-to-one relationship with remittance.transaction via the internal_transaction_id foreign key. It stores the SOF (Source of Funds) payment attempt details for each transaction."
+  },
+  {
+    "question": "What are the two databases used in this system?",
+    "ground_truth": "The system uses two PostgreSQL databases: ml_db (containing ml_schema for reference/master data and service_management for corridor configuration) and keycloak (containing remittance, customer, payment, portal, and ekyc schemas)."
+  },
+  {
+    "question": "What does fraud_status contain in remittance.transaction?",
+    "ground_truth": "fraud_status stores the result of the Forter fraud check for the transaction (e.g. FRAUD_PASSED, FRAUD_REJECTED). It is a varchar(30) column."
+  },
+  {
+    "question": "What is the remittance transaction lifecycle?",
+    "ground_truth": "The lifecycle is: Payment phase (PAYMENT_VALIDATED → PAYMENT_ACCEPTED → PAYMENT_PENDING → PAYMENT_RESERVED or PAYMENT_*_FAILED), SOF phase (SOF_PAY_PENDING → SOF_PAY_COMPLETED or SOF_PAY_FAILED), Remittance phase (TRANSACTION_SUBMITTED → TRANSACTION_IN_PROGRESS → TRANSACTION_SUCCESS/COMPLETED/CONFIRMED or FAILED/DECLINED/ON_HOLD), and optionally Refund (*_REFUND_REQUIRED → REFUNDED or REFUND_FAILED)."
+  },
+  {
+    "question": "How does the PayNow SOF flow work?",
+    "ground_truth": "An inbound PayNow credit notification creates a record in remittance.paynow_credit_notification. This then creates a paynow_transaction with QR data, which is linked to a remittance transaction via the source_of_fund_ref_id field."
+  },
+  {
+    "question": "What is proxy_refund_status in remittance.transaction?",
+    "ground_truth": "proxy_refund_status is a varchar(20) column that tracks the status of a proxy refund: INITIATED, COMPLETED, or FAILED."
+  },
+  {
+    "question": "What is the purpose of remit_corridor_reference?",
+    "ground_truth": "remit_corridor_reference maps receiving corridor details to a service, keyed by country + payer referer ID + partner. It stores the hub's payer_id, payer_type (BANK, WALLET, CASH_PICKUP), service_id, external_partner_id, and beneficiary validation flags used by Thunes and Tranglo."
+  },
+  {
+    "question": "How are FX rates stored in the system?",
+    "ground_truth": "Current FX rates are stored in ml_schema.ml_fx_rates, which has from_currency, to_currency, fx_rate (numeric 24,12), service_id linking to remit_service, and brand_id. Historical snapshots are in ml_schema.ml_fx_rates_history."
+  },
+  {
+    "question": "What schemas are in ml_db?",
+    "ground_truth": "ml_db contains two schemas: ml_schema (master/reference data — countries, mobile operators, FX rates, issuers) and service_management (remittance service and corridor configuration — remit_service, external_partner, remit_corridor_reference, and related tables)."
+  },
+  {
+    "question": "What are backup tables and should they be queried for analytics?",
+    "ground_truth": "Backup tables have a _bk_* prefix and are point-in-time snapshots used for manual data recovery. They should not be queried for analytics."
+  }
+]

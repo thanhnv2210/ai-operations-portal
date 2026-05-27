@@ -72,7 +72,9 @@
       "Bash(ls /Users/ThanhNguyen/AI_WS/ai-operations-portal/frontend/.env*)",
       "Bash(psql:*)",
       "Bash(python -c \":*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(pip install:*)",
+      "Bash(python3 -c \"import chromadb; print\\(chromadb.__version__\\); print\\(type\\(chromadb.PersistentClient\\)\\)\")"
     ]
   }
 }
