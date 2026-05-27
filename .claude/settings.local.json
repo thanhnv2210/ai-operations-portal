@@ -70,7 +70,9 @@
       "Bash(python3 -c \":*)",
       "Bash(python scripts/verify_schema.py)",
       "Bash(ls /Users/ThanhNguyen/AI_WS/ai-operations-portal/frontend/.env*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(python -c \":*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

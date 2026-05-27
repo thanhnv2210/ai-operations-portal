@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, Send, Sparkles, Trash2, TriangleAlert, X, Zap } from 'lucide-react'
+import { Bot, ChevronDown, ChevronUp, Database, Loader2, Send, Sparkles, Trash2, TriangleAlert, X, Zap } from 'lucide-react'
 import { MAX_CONTEXT_DAYS, MAX_MESSAGE_LEN, useChat, useInsights } from '@/hooks/useAi'
+import { SQL_SUGGESTED, friendlyError, useTextToSql } from '@/hooks/useTextToSql'
 import { toSgtIso } from '@/lib/sgt'
 
 const defaultFrom = toSgtIso(new Date(Date.now() - 7 * 86_400_000))
@@ -28,12 +29,15 @@ const SEVERITY_COLORS = {
 
 export function AiAssistant() {
   const [input, setInput] = useState('')
+  const [sqlInput, setSqlInput] = useState('')
+  const [sqlExpanded, setSqlExpanded] = useState(false)
   const [fromDate, setFromDate] = useState(defaultFrom)
   const [toDate, setToDate]     = useState(defaultTo)
-  const [activeTab, setActiveTab] = useState<'chat' | 'insights'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'insights' | 'query'>('chat')
 
   const { messages, streaming, send, cancel, clear } = useChat()
   const { data: insights, loading: insightsLoading, error: insightsError, generate } = useInsights()
+  const { status, sql, explanation, error: sqlError, streaming: sqlStreaming, ask, reset, cancel: cancelSql } = useTextToSql()
 
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -83,13 +87,17 @@ export function AiAssistant() {
 
         {/* Tab bar */}
         <div className="flex gap-1 border-b border-border">
-          {(['chat', 'insights'] as const).map(t => (
-            <button key={t} onClick={() => setActiveTab(t)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors capitalize ${
-                activeTab === t ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
+          {([
+            { id: 'chat',     label: 'Chat',        Icon: Bot },
+            { id: 'insights', label: 'Insights',    Icon: Sparkles },
+            { id: 'query',    label: 'Text-to-SQL', Icon: Database },
+          ] as const).map(({ id, label, Icon }) => (
+            <button key={id} onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}>
-              {t === 'chat' ? <Bot size={14} /> : <Sparkles size={14} />}
-              {t === 'chat' ? 'Chat' : 'Insights'}
+              <Icon size={14} />
+              {label}
             </button>
           ))}
         </div>
@@ -172,6 +180,104 @@ export function AiAssistant() {
                 </span>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── TEXT-TO-SQL ── */}
+        {activeTab === 'query' && (
+          <div className="flex flex-col gap-4">
+            {/* Description */}
+            <p className="text-sm text-muted-foreground">
+              Ask any question in plain English — the AI generates a PostgreSQL query, executes it, and explains the results.
+            </p>
+
+            {/* Example chips */}
+            {!sql && !sqlStreaming && !sqlError && (
+              <div className="flex flex-wrap gap-2">
+                {SQL_SUGGESTED.map(q => (
+                  <button key={q} onClick={() => { setSqlInput(q); ask(q) }}
+                    className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-subtle hover:text-foreground transition-colors">
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Input row */}
+            <div className="flex gap-2">
+              <input
+                value={sqlInput}
+                onChange={e => setSqlInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && !sqlStreaming && sqlInput.trim() && ask(sqlInput.trim())}
+                placeholder="e.g. How many transactions failed today?"
+                disabled={sqlStreaming}
+                className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+              />
+              {sqlStreaming ? (
+                <button onClick={cancelSql}
+                  className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-subtle transition-colors">
+                  <X size={15} /> Cancel
+                </button>
+              ) : (
+                <button onClick={() => sqlInput.trim() && ask(sqlInput.trim())} disabled={!sqlInput.trim()}
+                  className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity">
+                  <Send size={15} />
+                </button>
+              )}
+              {(sql || sqlError || explanation) && !sqlStreaming && (
+                <button onClick={() => { reset(); setSqlInput(''); setSqlExpanded(false) }}
+                  title="Clear" className="rounded-xl border border-border p-2.5 text-muted-foreground hover:bg-subtle hover:text-foreground transition-colors">
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
+
+            {/* Status indicator */}
+            {sqlStreaming && status && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 size={14} className="animate-spin text-primary" />
+                {status}
+              </div>
+            )}
+
+            {/* Error */}
+            {sqlError && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+                <p className="text-sm font-medium text-red-400">{friendlyError(sqlError.code, sqlError.message)}</p>
+                {sqlError.code === 'sql_validation_rejected' && (
+                  <p className="mt-1 text-xs text-red-400/70">{sqlError.message}</p>
+                )}
+              </div>
+            )}
+
+            {/* Generated SQL */}
+            {sql && (
+              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <button
+                  onClick={() => setSqlExpanded(v => !v)}
+                  className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-faint hover:bg-subtle transition-colors">
+                  <span className="flex items-center gap-1.5">
+                    <Database size={12} /> Generated SQL
+                  </span>
+                  {sqlExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                </button>
+                {sqlExpanded && (
+                  <pre className="overflow-x-auto px-4 pb-4 text-xs text-green-400 leading-relaxed whitespace-pre-wrap font-mono">
+                    {sql}
+                  </pre>
+                )}
+              </div>
+            )}
+
+            {/* Streaming explanation */}
+            {(explanation || (sqlStreaming && sql)) && (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                  {explanation}
+                  {sqlStreaming && explanation && <span className="ml-1 inline-block h-3 w-0.5 animate-pulse bg-current" />}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
