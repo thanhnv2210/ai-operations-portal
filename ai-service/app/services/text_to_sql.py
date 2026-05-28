@@ -20,6 +20,7 @@ from collections.abc import AsyncGenerator
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.llm import complete, stream_response
 from app.observability import get_tracer
 from app.schema_context.loader import get_schema_context
@@ -184,6 +185,7 @@ async def run(
         "text_to_sql",
         input={"question": question},
         metadata={"pipeline": "text_to_sql"},
+        tags=[get_settings().app_env],
     ) as trace:
 
         # ── Step 1: Generate SQL ─────────────────────────────────────────────

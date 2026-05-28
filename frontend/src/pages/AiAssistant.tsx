@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, ChevronDown, ChevronUp, Database, Loader2, Send, Sparkles, Trash2, TriangleAlert, X, Zap } from 'lucide-react'
+import { Bot, ChevronDown, ChevronUp, Database, History, Loader2, Send, Sparkles, Trash2, TriangleAlert, X, Zap } from 'lucide-react'
 import { MAX_CONTEXT_DAYS, MAX_MESSAGE_LEN, useChat, useInsights } from '@/hooks/useAi'
 import { SQL_SUGGESTED, friendlyError, useTextToSql } from '@/hooks/useTextToSql'
+import { useQueryHistory } from '@/hooks/useQueryHistory'
+import { QueryHistoryPanel } from '@/components/QueryHistoryPanel'
 import { toSgtIso } from '@/lib/sgt'
 
 const defaultFrom = toSgtIso(new Date(Date.now() - 7 * 86_400_000))
@@ -31,6 +33,7 @@ export function AiAssistant() {
   const [input, setInput] = useState('')
   const [sqlInput, setSqlInput] = useState('')
   const [sqlExpanded, setSqlExpanded] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const [fromDate, setFromDate] = useState(defaultFrom)
   const [toDate, setToDate]     = useState(defaultTo)
   const [activeTab, setActiveTab] = useState<'chat' | 'insights' | 'query'>('chat')
@@ -38,8 +41,18 @@ export function AiAssistant() {
   const { messages, streaming, send, cancel, clear } = useChat()
   const { data: insights, loading: insightsLoading, error: insightsError, generate } = useInsights()
   const { status, sql, explanation, error: sqlError, streaming: sqlStreaming, ask, reset, cancel: cancelSql } = useTextToSql()
+  const { entries: historyEntries, add: addHistory, toggleFavorite, remove: removeHistory, clear: clearHistory } = useQueryHistory()
 
   const bottomRef = useRef<HTMLDivElement>(null)
+  const prevStreamingRef = useRef(false)
+
+  // Save to history when a query completes successfully
+  useEffect(() => {
+    if (prevStreamingRef.current && !sqlStreaming && sql && !sqlError) {
+      addHistory(sqlInput, sql)
+    }
+    prevStreamingRef.current = sqlStreaming
+  }, [sqlStreaming, sql, sqlError, sqlInput, addHistory])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -186,10 +199,41 @@ export function AiAssistant() {
         {/* ── TEXT-TO-SQL ── */}
         {activeTab === 'query' && (
           <div className="flex flex-col gap-4">
-            {/* Description */}
-            <p className="text-sm text-muted-foreground">
-              Ask any question in plain English — the AI generates a PostgreSQL query, executes it, and explains the results.
-            </p>
+            {/* Description + history toggle */}
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                Ask any question in plain English — the AI generates a PostgreSQL query, executes it, and explains the results.
+              </p>
+              <button
+                onClick={() => setShowHistory(v => !v)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  showHistory
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-subtle'
+                }`}
+              >
+                <History size={13} />
+                History
+                {historyEntries.length > 0 && (
+                  <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                    showHistory ? 'bg-primary/20 text-primary' : 'bg-subtle text-faint'
+                  }`}>
+                    {historyEntries.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* History panel */}
+            {showHistory && (
+              <QueryHistoryPanel
+                entries={historyEntries}
+                onSelect={entry => { setSqlInput(entry.question); ask(entry.question); setShowHistory(false) }}
+                onToggleFavorite={toggleFavorite}
+                onRemove={removeHistory}
+                onClear={clearHistory}
+              />
+            )}
 
             {/* Example chips */}
             {!sql && !sqlStreaming && !sqlError && (

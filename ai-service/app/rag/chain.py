@@ -13,6 +13,7 @@ This is a non-streaming chain — the full answer is returned at once.
 
 import logging
 
+from app.config import get_settings
 from app.llm import complete
 from app.observability import get_tracer
 from app.rag.embedder import embed
@@ -59,6 +60,7 @@ async def query(question: str) -> dict:
         "rag_query",
         input={"question": question},
         metadata={"pipeline": "rag"},
+        tags=[get_settings().app_env],
     ) as trace:
 
         # Step 1: embed
