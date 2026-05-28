@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Plus, Save, Settings, Trash2, X } from 'lucide-react'
+import { FontSizeControl } from '@/components/FontSizeControl'
 
 // --- Types ---
 
@@ -284,6 +285,11 @@ export function AdminConfig() {
               </button>
             )}
           </div>
+        </Section>
+
+        {/* ── Display ── */}
+        <Section title="Display">
+          <FontSizeControl />
         </Section>
       </div>
     </div>

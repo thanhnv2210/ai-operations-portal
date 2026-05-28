@@ -16,6 +16,18 @@
         }
       })()
     </script>
+    <!-- Font size FOUC prevention — sets html font-size before first paint -->
+    <script>
+      (function(){try{
+        var s=localStorage.getItem("ai-ops-portal:font-size");
+        var n=s?parseInt(s,10):NaN;
+        if(!n||isNaN(n)){
+          var w=screen.width;
+          n=w<768?16:w<1280?15:w<1440?14:w<1920?15:w<2560?16:w<3840?17:18;
+        }
+        document.documentElement.style.fontSize=n+'px';
+      }catch(e){}})();
+    </script>
   </head>
   <body>
     <div id="root"></div>

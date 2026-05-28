@@ -41,8 +41,9 @@
   --color-primary-foreground: var(--primary-foreground);
 }
 
+/* Base font size — overridden at runtime by FontScaler based on screen.width */
 html {
-  font-size: 15px;
+  font-size: 14px;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;

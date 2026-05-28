@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BookOpen, Bot, LayoutDashboard, Search, Settings } from 'lucide-react'
+import { FontScaler } from '@/components/FontScaler'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AdminConfig } from '@/pages/AdminConfig'
@@ -68,6 +69,7 @@ function Shell() {
 function App() {
   return (
     <ThemeProvider>
+      <FontScaler />
       <Shell />
     </ThemeProvider>
   )
