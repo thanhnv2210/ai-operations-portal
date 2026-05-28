@@ -47,7 +47,7 @@ async def rag_query(req: QueryRequest) -> QueryResponse:
     if store.get_collection().count() == 0:
         raise HTTPException(
             status_code=503,
-            detail="Knowledge base is empty. Run: python -m app.rag.ingest",
+            detail="Knowledge base is empty. Run (from ai-service/): python -m app.rag.ingest",
         )
 
     try:

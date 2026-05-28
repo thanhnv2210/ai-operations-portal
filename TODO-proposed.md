@@ -18,6 +18,8 @@
 | Text-to-SQL pipeline | Done |
 | RAG pipeline | Done |
 | Unit tests (backend 101 + frontend 29) | Done |
+| Ingest CLI shim (`python -m app.rag.ingest`) | Done |
+| README.md updated (Phase 2 + 3, RAG eval scores) | Done |
 | Deployment | Not started |
 
 ---

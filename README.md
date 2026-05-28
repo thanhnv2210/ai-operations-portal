@@ -8,20 +8,57 @@ An AI-assisted operational intelligence platform for enterprise transactional sy
 |---|---|
 | **Operational Dashboard** | Transaction counts, failure rates, processing time (p50/p95), hub breakdown |
 | **Transaction Explorer** | Paginated search with filters, detail view, full audit timeline |
-| **AI Assistant** | Natural language queries over live operational data (streaming) |
+| **AI Assistant — Chat** | Natural language queries grounded in live aggregate stats (streaming SSE) |
+| **AI Assistant — Text-to-SQL** | NL → validated SQL → execute → streaming plain-English explanation |
 | **AI Insights Engine** | Auto-generated summaries, anomaly explanations, trend observations |
-| **Admin Configuration** | Manage AI prompt templates and alert thresholds |
+| **Knowledge Base** | RAG-powered Q&A over system docs; hybrid BM25 + vector search; source citations |
 
 ## Architecture
 
 ```
 frontend/       React 19 + Vite 8 + TailwindCSS v4 — port 3007
 ai-service/     Python FastAPI + SQLAlchemy async — port 8007
-docs/           Database design, API contracts
+docs/           Database design, API contracts, RAG eval results
 infrastructure/ Docker Compose
 ```
 
-The frontend proxies all `/api` requests to the ai-service. No separate backend — the FastAPI service handles everything.
+The frontend proxies all `/api` requests to the ai-service. No separate backend — the FastAPI service handles both operational queries and AI pipelines.
+
+### Text-to-SQL Pipeline
+
+```
+User question
+  → Schema context (5 whitelisted tables, PII-stripped, status enum, FK hints)
+  → Claude claude-opus-4-6 generates SELECT-only SQL
+  → Validate (reject writes) + EXPLAIN dry-run
+  → Route: remittance.* → keycloak DB | ml_schema.* → ml_db
+  → Execute + stream plain-English explanation back via SSE
+```
+
+Typed SSE events: `{type: status}` → `{type: sql}` → `{type: token}×N` or `{type: error}`
+
+### RAG Pipeline
+
+```
+Ingest:  database-design.md → header-based chunker (51 chunks, 2000 char max)
+           → nomic-embed-text (Ollama) or text-embedding-3-small (OpenAI)
+           → ChromaDB PersistentClient + in-memory BM25Okapi index
+
+Query:   Question → embed → vector top-8 + BM25 top-8
+           → Reciprocal Rank Fusion (k=60) → top-6 chunks
+           → Grounding guard (similarity < 0.40 → refuse to answer)
+           → Claude answers citing numbered context blocks
+           → {answer, sources: [{chunk_text, section_title, score}]}
+```
+
+**RAG eval results** (RAGAS 0.2.15, 15 golden Q&A pairs, Ollama evaluator):
+
+| Metric | Score | Target |
+|---|---|---|
+| context_recall | **0.865** | > 0.80 ✅ |
+| faithfulness | 1.000 (partial) | > 0.85 |
+
+Full results in [`docs/rag-eval-results.md`](docs/rag-eval-results.md).
 
 ## Data Sources
 
@@ -80,6 +117,24 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8007
 ```
 
+**Ingest knowledge base docs** (required for Knowledge Base / RAG queries)
+```bash
+cd ai-service
+# Requires Ollama running with nomic-embed-text, OR OPENAI_API_KEY set
+python -m app.rag.ingest
+# → embeds docs/database-design.md into ChromaDB (rag_data/ — gitignored)
+# → rebuilds BM25 index in memory
+# Re-run after any edits to docs/database-design.md
+```
+
+**Run eval** (optional — measures RAG retrieval quality)
+```bash
+cd ai-service
+pip install -r requirements-eval.txt
+python scripts/eval_rag.py
+# Results written to docs/rag-eval-results.md
+```
+
 **Or with the shell CLI** (after `source ~/.zshrc`):
 ```bash
 aiops-start        # start both services
@@ -96,10 +151,10 @@ aiops-logs-be      # tail backend logs
 # Frontend
 npm run build      # production build
 npm run lint
-npm test           # Vitest
+npm test           # Vitest (29 tests)
 
 # AI Service
-pytest                                          # all tests
+pytest             # all tests (101 tests — text_to_sql, schema_context, chunker, retriever)
 pytest tests/path/test_file.py::test_name      # single test
 ```
 
@@ -113,20 +168,29 @@ pytest tests/path/test_file.py::test_name      # single test
 | GET | `/api/v1/transactions` | Paginated transaction search |
 | GET | `/api/v1/transactions/{id}` | Transaction detail |
 | GET | `/api/v1/transactions/{id}/audit` | Audit history timeline |
-| POST | `/api/v1/ai/chat` | Streaming natural language query (SSE) |
+| POST | `/api/v1/ai/chat` | Streaming NL query grounded in live stats (SSE) |
 | POST | `/api/v1/ai/insights` | Generate AI operational insights |
+| POST | `/api/v1/assistant/query` | **Text-to-SQL**: NL → SQL → execute → stream explanation (SSE) |
+| GET | `/api/v1/rag/status` | Knowledge base status (chunk count, last ingested) |
+| POST | `/api/v1/rag/query` | **RAG**: Q&A over system docs with source citations |
 | GET/PUT | `/api/v1/admin/thresholds` | Alert threshold configuration |
 | GET/POST | `/api/v1/admin/prompts` | Prompt template management |
-| PUT/DELETE | `/api/v1/admin/prompts/{id}` | Update or delete a prompt template |
 
-Interactive API docs available at `http://localhost:8007/docs` (local only).
+Interactive API docs: `http://localhost:8007/docs` (local only).
 
 ## AI Integration
 
-- **Primary:** `claude-opus-4-6` via Anthropic SDK with adaptive thinking and streaming
-- **Fallback:** Ollama (Mistral) via OpenAI-compatible endpoint for local/offline use
-- Prompt templates are user-configurable via the Admin panel and persisted to `ai-service/data/admin_config.json`
-- PII fields (MSISDN, names, account numbers) are never included in AI prompts
+- **Primary LLM:** `claude-opus-4-6` via Anthropic SDK — used for SQL generation, result explanation, and RAG answering
+- **Embeddings:** `text-embedding-3-small` (OpenAI) when `OPENAI_API_KEY` is set; `nomic-embed-text` via Ollama otherwise
+- **Fallback LLM:** Ollama (`llama3.1:8b`) via OpenAI-compatible endpoint for local/offline use
+- Prompt templates are user-configurable via the Admin panel
+- PII fields (MSISDN, names, DOB, account numbers) are stripped from all AI prompts at the schema context layer
+
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Yes | Claude claude-opus-4-6 for SQL + RAG chain |
+| `OPENAI_API_KEY` | No | Better embeddings (`text-embedding-3-small`); falls back to Ollama |
+| `OLLAMA_BASE_URL` | No | Default `http://localhost:11434` |
 
 ## Multi-Environment Config
 
