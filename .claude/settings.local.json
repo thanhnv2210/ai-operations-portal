@@ -106,7 +106,16 @@
       "Bash(aiops-status)",
       "Bash(curl -s -X POST http://localhost:8007/api/v1/rag/query -H \"Content-Type: application/json\" -d '{\"\"\"\"question\"\"\"\": \"\"\"\"What hubs does the system support?\"\"\"\"}')",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''OK — answer length:'''', len\\(d.get\\(''''answer'''',''''''''\\)\\)\\)\")",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(pg_dump --version)",
+      "Bash(PGPASSWORD=admin psql -h localhost -p 54320 -U admin -d ml_db -c \"SELECT COUNT\\(*\\) FROM ml_schema.country;\" 2>&1)",
+      "Bash(PGPASSWORD=admin psql -h localhost -p 54320 -U admin -d keycloak -c \"SELECT COUNT\\(*\\) FROM remittance.transaction;\" 2>&1)",
+      "Bash(NEON_ML=\"postgresql://neondb_owner:npg_mHYp3zO5FBvb@ep-dry-cherry-aoh661hd.c-2.ap-southeast-1.aws.neon.tech/ml_db?sslmode=require\")",
+      "Bash(NEON_KC=\"postgresql://neondb_owner:npg_mHYp3zO5FBvb@ep-dry-cherry-aoh661hd.c-2.ap-southeast-1.aws.neon.tech/keycloak?sslmode=require\")",
+      "Bash(NEON_ML=\"postgresql://neondb_owner:npg_mHYp3zO5FBvb@ep-dry-cherry-aoh661hd.c-2.ap-southeast-1.aws.neon.tech/ml_db?sslmode=require\" PGPASSWORD=admin pg_dump -h localhost -p 54320 -U admin --schema=ml_schema --schema=service_management --no-owner --no-privileges ml_db)",
+      "Bash(NEON_KC=\"postgresql://neondb_owner:npg_mHYp3zO5FBvb@ep-dry-cherry-aoh661hd.c-2.ap-southeast-1.aws.neon.tech/keycloak?sslmode=require\" PGPASSWORD=admin pg_dump -h localhost -p 54320 -U admin --schema-only --schema=remittance --schema=customer --schema=payment --schema=ekyc --no-owner --no-privileges keycloak)",
+      "Bash(PGPASSWORD=admin psql -h localhost -p 54320 -U admin -d keycloak -c \"\nSELECT column_name FROM information_schema.columns\nWHERE table_schema='remittance' AND table_name='transaction'\nORDER BY ordinal_position;\" 2>&1)",
+      "Bash(__NEW_LINE_7546b58f18a710f2__ echo:*)"
     ]
   }
 }
