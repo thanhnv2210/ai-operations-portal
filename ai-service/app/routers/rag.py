@@ -52,6 +52,9 @@ async def rag_query(req: QueryRequest) -> QueryResponse:
 
     try:
         result = await chain.query(req.question)
+    except RuntimeError as exc:
+        log.error("RAG chain error: %s", exc)
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         log.error("RAG chain error: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc

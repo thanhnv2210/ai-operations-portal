@@ -54,12 +54,18 @@ async def _openai_embed(texts: list[str], api_key: str) -> list[list[float]]:
 async def _ollama_embed(texts: list[str], base_url: str) -> list[list[float]]:
     """Call Ollama's native /api/embeddings endpoint for each text."""
     results: list[list[float]] = []
-    async with httpx.AsyncClient(timeout=60) as client:
-        for text in texts:
-            resp = await client.post(
-                f"{base_url}/api/embeddings",
-                json={"model": _OLLAMA_MODEL, "prompt": text},
-            )
-            resp.raise_for_status()
-            results.append(resp.json()["embedding"])
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            for text in texts:
+                resp = await client.post(
+                    f"{base_url}/api/embeddings",
+                    json={"model": _OLLAMA_MODEL, "prompt": text},
+                )
+                resp.raise_for_status()
+                results.append(resp.json()["embedding"])
+    except httpx.ConnectError as exc:
+        raise RuntimeError(
+            f"Embedding service unavailable: could not connect to Ollama at {base_url}. "
+            "Set OPENAI_API_KEY to use OpenAI embeddings instead, or run Ollama locally."
+        ) from exc
     return results
