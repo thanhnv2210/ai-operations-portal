@@ -1,0 +1,22 @@
+name: Deploy on commit message
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy-api:
+    name: Deploy API to Render
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[deploy api]')
+    steps:
+      - name: Trigger Render deploy
+        run: curl -s "${{ secrets.RENDER_DEPLOY_HOOK }}"
+
+  deploy-ui:
+    name: Deploy UI to Vercel
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[deploy ui]')
+    steps:
+      - name: Trigger Vercel deploy
+        run: curl -s "${{ secrets.VERCEL_DEPLOY_HOOK }}"

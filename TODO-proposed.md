@@ -209,6 +209,12 @@ Run frontend: `cd frontend && npm test`
 - [x] LLM observability — **Langfuse** tracing for Text-to-SQL + RAG; 5 spans per pipeline; env tags (`local`/`uat`); self-hosted on port 3020
 - [ ] RAGAS full evaluation — faithfulness + answer_relevancy (requires OpenAI key; Ollama times out on 15 pairs)
 - [ ] Session isolation for query history — add `session_id` (browser cookie) to `query_history` table once multi-user support is needed
+- [ ] **Commit-message-based deploy triggers** — GitHub Actions workflow already at `.github/workflows/deploy.yml`; remaining steps:
+  1. Vercel → Project → Settings → Git → Deploy Hooks → create hook named `github-actions`, branch `master` → save URL as `VERCEL_DEPLOY_HOOK` secret
+  2. Render → Service → Settings → Build & Deploy → Deploy Hook → save URL as `RENDER_DEPLOY_HOOK` secret
+  3. GitHub repo → Settings → Secrets and variables → Actions → add both secrets
+  4. Disable auto-deploy on both platforms (Vercel: Git settings; Render: Auto-Deploy → No)
+  - Usage: `[deploy api]` in commit message → Render; `[deploy ui]` → Vercel; both tags → both
 
 ---
 
