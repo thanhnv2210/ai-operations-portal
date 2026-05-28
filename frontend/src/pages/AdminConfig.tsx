@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Plus, Save, Settings, Trash2, X } from 'lucide-react'
+import { API_BASE } from '@/lib/api'
 import { FontSizeControl } from '@/components/FontSizeControl'
 
 // --- Types ---
@@ -84,18 +85,18 @@ export function AdminConfig() {
   const [templatesError, setTemplatesError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchJson<Thresholds>('/api/v1/admin/thresholds').then(t => {
+    fetchJson<Thresholds>(`${API_BASE}/api/v1/admin/thresholds`).then(t => {
       setThresholds(t)
       setThresholdsDraft(t)
     })
-    fetchJson<PromptTemplate[]>('/api/v1/admin/prompts').then(setTemplates)
+    fetchJson<PromptTemplate[]>(`${API_BASE}/api/v1/admin/prompts`).then(setTemplates)
   }, [])
 
   async function saveThresholds() {
     if (!thresholdsDraft) return
     setThresholdsSaving(true)
     try {
-      const updated = await fetchJson<Thresholds>('/api/v1/admin/thresholds', {
+      const updated = await fetchJson<Thresholds>(`${API_BASE}/api/v1/admin/thresholds`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(thresholdsDraft),
@@ -118,7 +119,7 @@ export function AdminConfig() {
   }
 
   async function saveEdit(id: string) {
-    const updated = await fetchJson<PromptTemplate>(`/api/v1/admin/prompts/${id}`, {
+    const updated = await fetchJson<PromptTemplate>(`${API_BASE}/api/v1/admin/prompts/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(editDraft),
@@ -128,7 +129,7 @@ export function AdminConfig() {
   }
 
   async function deleteTemplate(id: string) {
-    await fetch(`/api/v1/admin/prompts/${id}`, { method: 'DELETE' })
+    await fetch(`${API_BASE}/api/v1/admin/prompts/${id}`, { method: 'DELETE' })
     setTemplates(ts => ts.filter(t => t.id !== id))
   }
 
@@ -138,7 +139,7 @@ export function AdminConfig() {
       return
     }
     setTemplatesError(null)
-    const created = await fetchJson<PromptTemplate>('/api/v1/admin/prompts', {
+    const created = await fetchJson<PromptTemplate>(`${API_BASE}/api/v1/admin/prompts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newDraft),

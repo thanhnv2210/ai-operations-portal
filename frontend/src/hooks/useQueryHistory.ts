@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { API_BASE } from '@/lib/api'
 
 export interface QueryHistoryEntry {
   id: string
@@ -21,7 +22,7 @@ export function useQueryHistory() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const data = await apiFetch<QueryHistoryEntry[]>('/api/v1/history')
+      const data = await apiFetch<QueryHistoryEntry[]>(`${API_BASE}/api/v1/history`)
       setEntries(data)
     } catch {
       // silently ignore — history is non-critical
@@ -34,7 +35,7 @@ export function useQueryHistory() {
 
   const add = useCallback(async (question: string, sql: string) => {
     try {
-      const entry = await apiFetch<QueryHistoryEntry>('/api/v1/history', {
+      const entry = await apiFetch<QueryHistoryEntry>(`${API_BASE}/api/v1/history`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, sql }),
@@ -49,7 +50,7 @@ export function useQueryHistory() {
 
   const toggleFavorite = useCallback(async (id: string) => {
     try {
-      const updated = await apiFetch<QueryHistoryEntry>(`/api/v1/history/${id}/favorite`, {
+      const updated = await apiFetch<QueryHistoryEntry>(`${API_BASE}/api/v1/history/${id}/favorite`, {
         method: 'PATCH',
       })
       setEntries(prev => prev.map(e => e.id === id ? updated : e))
@@ -58,14 +59,14 @@ export function useQueryHistory() {
 
   const remove = useCallback(async (id: string) => {
     try {
-      await apiFetch<void>(`/api/v1/history/${id}`, { method: 'DELETE' })
+      await apiFetch<void>(`${API_BASE}/api/v1/history/${id}`, { method: 'DELETE' })
       setEntries(prev => prev.filter(e => e.id !== id))
     } catch { /* non-critical */ }
   }, [])
 
   const clear = useCallback(async () => {
     try {
-      await apiFetch<void>('/api/v1/history', { method: 'DELETE' })
+      await apiFetch<void>(`${API_BASE}/api/v1/history`, { method: 'DELETE' })
       setEntries(prev => prev.filter(e => e.is_favorite))
     } catch { /* non-critical */ }
   }, [])

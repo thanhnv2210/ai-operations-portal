@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { API_BASE } from '@/lib/api'
 import type { AuditEntry, RefItem, TransactionDetail, TransactionFilters, TransactionPage } from '@/types/transactions'
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -31,7 +32,7 @@ export function useTransactions(filters: TransactionFilters) {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    fetchJson<TransactionPage>(`/api/v1/transactions?${toParams(filters)}`)
+    fetchJson<TransactionPage>(`${API_BASE}/api/v1/transactions?${toParams(filters)}`)
       .then(d => { setData(d); setLoading(false) })
       .catch(e => { setError(String(e)); setLoading(false) })
   }, [
@@ -49,14 +50,14 @@ export function useReference(hubId?: number) {
   const [statuses, setStatuses] = useState<string[]>([])
 
   useEffect(() => {
-    fetchJson<RefItem[]>('/api/v1/transactions/reference/hubs').then(setHubs).catch(() => {})
-    fetchJson<string[]>('/api/v1/transactions/reference/statuses').then(setStatuses).catch(() => {})
+    fetchJson<RefItem[]>(`${API_BASE}/api/v1/transactions/reference/hubs`).then(setHubs).catch(() => {})
+    fetchJson<string[]>(`${API_BASE}/api/v1/transactions/reference/statuses`).then(setStatuses).catch(() => {})
   }, [])
 
   useEffect(() => {
     const url = hubId != null
-      ? `/api/v1/transactions/reference/services?hub_id=${hubId}`
-      : '/api/v1/transactions/reference/services'
+      ? `${API_BASE}/api/v1/transactions/reference/services?hub_id=${hubId}`
+      : `${API_BASE}/api/v1/transactions/reference/services`
     fetchJson<RefItem[]>(url).then(setServices).catch(() => {})
   }, [hubId])
 
@@ -92,7 +93,7 @@ export function useStatusCounts(from_date: string, to_date: string, hub_id?: num
     if (hub_id != null) p.set('hub_id', String(hub_id))
     if (service_id != null) p.set('service_id', String(service_id))
     fetchJson<{ statuses: { status: string; count: number }[] }>(
-      `/api/v1/dashboard/status-distribution?${p}`
+      `${API_BASE}/api/v1/dashboard/status-distribution?${p}`
     )
       .then(d => setCounts(new Map(d.statuses.map(s => [s.status, s.count]))))
       .catch(() => {})
@@ -110,8 +111,8 @@ export function useTransactionDetail(id: number | null) {
     if (id === null) { setDetail(null); setAudit([]); return }
     setLoading(true)
     Promise.all([
-      fetchJson<TransactionDetail>(`/api/v1/transactions/${id}`),
-      fetchJson<AuditEntry[]>(`/api/v1/transactions/${id}/audit`),
+      fetchJson<TransactionDetail>(`${API_BASE}/api/v1/transactions/${id}`),
+      fetchJson<AuditEntry[]>(`${API_BASE}/api/v1/transactions/${id}/audit`),
     ]).then(([d, a]) => {
       setDetail(d)
       setAudit(a)

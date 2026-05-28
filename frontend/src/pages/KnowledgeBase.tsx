@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BookOpen, ChevronDown, ChevronUp, Loader2, Search } from 'lucide-react'
+import { API_BASE } from '@/lib/api'
 
 interface SourceChunk {
   chunk_text: string
@@ -40,7 +41,7 @@ export function KnowledgeBase() {
     setExpandedSources(new Set())
 
     try {
-      const res = await fetch('/api/v1/rag/query', {
+      const res = await fetch(`${API_BASE}/api/v1/rag/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),

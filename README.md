@@ -137,12 +137,16 @@ python scripts/eval_rag.py
 
 **Or with the shell CLI** (after `source ~/.zshrc`):
 ```bash
-aiops-start        # start both services
-aiops-stop         # stop both
-aiops-restart      # restart both
-aiops-status       # show running PIDs and URLs
-aiops-logs-fe      # tail frontend logs
-aiops-logs-be      # tail backend logs
+aiops-start          # start Langfuse infra + frontend + backend
+aiops-stop           # stop everything (including Langfuse)
+aiops-stop-app       # stop frontend + backend only (keep Langfuse/DB running)
+aiops-restart        # restart frontend + backend (keeps Langfuse running)
+aiops-status         # show status of all components
+aiops-logs-fe        # tail frontend logs
+aiops-logs-be        # tail backend logs
+aiops-infra-start    # start Langfuse only
+aiops-infra-stop     # stop Langfuse only
+aiops-infra-status   # show docker compose ps for Langfuse
 ```
 
 ### Other Commands
@@ -236,6 +240,80 @@ Tracing is **opt-in and zero-impact** — all pipelines run normally without any
 | `OLLAMA_BASE_URL` | Ollama base URL (default: `http://localhost:11434`) |
 
 CI and UAT inject environment variables directly — no `.env` file needed in those environments.
+
+## Deployment
+
+### Frontend → Vercel
+
+1. Push the repo to GitHub.
+2. In the [Vercel dashboard](https://vercel.com), import the repository.
+3. Set **Root Directory** to `frontend`.
+4. Add the environment variable:
+   ```
+   VITE_API_URL=https://<your-railway-app>.up.railway.app
+   ```
+5. Deploy. Vercel uses `npm run build` automatically and serves `dist/`.
+
+`vercel.json` handles SPA routing (all paths fall back to `index.html`).
+
+> **Order matters:** deploy the ai-service to Railway first to get the URL, then set `VITE_API_URL` in Vercel before deploying the frontend.
+
+---
+
+### AI Service → Railway
+
+1. In the [Railway dashboard](https://railway.app), create a new project → **Deploy from GitHub repo**.
+2. Set **Root Directory** to `ai-service`.
+3. Railway auto-detects the `Dockerfile`. Set the required environment variables:
+
+   | Variable | Value |
+   |---|---|
+   | `APP_ENV` | `uat` |
+   | `ML_DB_URL` | `postgresql+asyncpg://<user>:<pass>@<host>:<port>/ml_db` |
+   | `KEYCLOAK_DB_URL` | `postgresql+asyncpg://<user>:<pass>@<host>:<port>/keycloak` |
+   | `ANTHROPIC_API_KEY` | `sk-ant-...` |
+   | `CORS_ORIGINS` | `["https://<your-vercel-app>.vercel.app"]` |
+   | `OPENAI_API_KEY` | *(optional)* better embeddings for RAG |
+   | `LANGFUSE_PUBLIC_KEY` | *(optional)* LLM tracing |
+   | `LANGFUSE_SECRET_KEY` | *(optional)* LLM tracing |
+
+4. After the first deploy, **run the RAG ingest** as a one-off Railway job:
+   ```bash
+   python -m app.rag.ingest
+   ```
+   This populates the ChromaDB vector store (`rag_data/`) needed for Knowledge Base queries.
+   > Note: `rag_data/` and query history (`portal_data.db`) are ephemeral on Railway — they reset on each deploy. For persistence, mount a Railway volume at `/app/rag_data` and `/app/portal_data.db`.
+
+---
+
+### Docker (local or self-hosted)
+
+Both services have production Dockerfiles.
+
+**AI Service:**
+```bash
+docker build -t aiops-api ./ai-service
+docker run -p 8007:8000 \
+  -e APP_ENV=uat \
+  -e ML_DB_URL=... \
+  -e KEYCLOAK_DB_URL=... \
+  -e ANTHROPIC_API_KEY=... \
+  -e CORS_ORIGINS='["http://localhost:3007"]' \
+  aiops-api
+```
+
+**Frontend** (multi-stage nginx build):
+```bash
+docker build --build-arg VITE_API_URL=http://localhost:8007 -t aiops-fe ./frontend
+docker run -p 3007:80 aiops-fe
+```
+
+Or use Docker Compose (starts both services together):
+```bash
+ANTHROPIC_API_KEY=sk-ant-... docker compose -f infrastructure/docker-compose.yml up -d
+```
+
+---
 
 ## Connecting to Production
 

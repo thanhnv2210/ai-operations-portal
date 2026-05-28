@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { API_BASE } from '@/lib/api'
 
 export type SseEventType = 'status' | 'sql' | 'token' | 'error'
 
@@ -84,7 +85,7 @@ export function useTextToSql() {
     setState({ status: 'Starting...', sql: null, explanation: '', error: null, streaming: true })
 
     try {
-      const res = await fetch('/api/v1/assistant/query', {
+      const res = await fetch(`${API_BASE}/api/v1/assistant/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),

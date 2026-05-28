@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { API_BASE } from '@/lib/api'
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -38,7 +39,7 @@ export function useChat() {
     setStreaming(true)
 
     try {
-      const res = await fetch('/api/v1/ai/chat', {
+      const res = await fetch(`${API_BASE}/api/v1/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, from_date: fromDate, to_date: toDate }),
@@ -116,7 +117,7 @@ export function useInsights() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/v1/ai/insights', {
+      const res = await fetch(`${API_BASE}/api/v1/ai/insights`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from_date: fromDate, to_date: toDate }),

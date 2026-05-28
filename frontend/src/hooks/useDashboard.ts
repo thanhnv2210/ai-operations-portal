@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { API_BASE } from '@/lib/api'
 import { dashboardLimiter } from '@/lib/concurrency'
 import type {
   DashboardFilters,
@@ -9,7 +10,7 @@ import type {
   VolumeTrendData,
 } from '@/types/dashboard'
 
-const BASE = '/api/v1/dashboard'
+const BASE = `${API_BASE}/api/v1/dashboard`
 
 function toParams(filters: DashboardFilters): string {
   const p = new URLSearchParams({ from_date: filters.from_date, to_date: filters.to_date })
