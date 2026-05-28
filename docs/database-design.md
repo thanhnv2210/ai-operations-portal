@@ -208,8 +208,8 @@ Core transaction table. One row per remittance attempt. Status drives the full l
 | Column | Type | Notes |
 |---|---|---|
 | internal_transaction_id | bigint PK | ML internal ID (sequence) |
-| hub_id | bigint | Which hub processed this (FK concept to external_partner) |
-| hub_name | varchar(255) | Hub name snapshot (TELEPIN/WU/THUNES/TRANGLO) |
+| hub_id | bigint | FK → service_management.external_partner.external_partner_id — identifies which hub (TELEPIN, WU, THUNES, TRANGLO) processed this transaction |
+| hub_name | varchar(255) | Denormalized snapshot of external_partner.external_partner_name at transaction time — use this for filtering/grouping instead of joining to ml_db (cross-DB join not possible) |
 | payment_reference_id | varchar(16) | ML payment reference shown to customer |
 | hub_transaction_id | varchar(16) | Hub's short transaction ID |
 | hub_transaction_id_check | varchar(48) | Hub TX ID from check step |
@@ -240,9 +240,9 @@ Core transaction table. One row per remittance attempt. Status drives the full l
 | recipient_nationality | varchar(60) | |
 | recipient_dob | varchar(32) | (PII — masked) |
 | recipient_pickup_code | varchar(256) | Cash pickup code (encrypted) |
-| remittance_amount | numeric(20,9) | Amount in sender currency |
-| recipient_amount | numeric(20,9) | Amount in recipient currency |
-| customer_key_in_amount | numeric(20,9) | Amount customer typed (before conversion) |
+| remittance_amount | numeric(20,9) | Amount debited from sender in sender_currency (e.g. 100 SGD) |
+| recipient_amount | numeric(20,9) | Amount credited to recipient in recipient_currency after FX conversion (e.g. 3 800 PHP) |
+| customer_key_in_amount | numeric(20,9) | Raw amount the customer typed — equals remittance_amount in source mode (currency_flag=0) or equals recipient_amount in destination mode (currency_flag=1) |
 | currency_flag | smallint | 0 = source mode, 1 = destination mode |
 | hub_exchange_rate | numeric(24,12) | Hub's rate |
 | retail_exchange_rate | numeric(24,12) | Customer-facing rate |
@@ -269,6 +269,16 @@ Core transaction table. One row per remittance attempt. Status drives the full l
 | salt | varchar(50) | Encryption salt |
 | created_date / updated_date / version | | Optimistic locking + audit |
 
+**Transaction Amount Fields Explained:**
+
+- `remittance_amount` — the amount the **sender** pays in their local currency (e.g. SGD 100). This is what is debited from the sender's account.
+- `recipient_amount` — the amount the **recipient** receives in the destination currency (e.g. PHP 3 800). This differs from `remittance_amount` because of FX conversion: `recipient_amount ≈ remittance_amount × retail_exchange_rate`.
+- `retail_fee` — the service fee charged to the sender on top of the remittance amount.
+- `retail_exchange_rate` — the FX rate shown to the customer (includes markup over interbank rate).
+- `hub_exchange_rate` — the raw rate the hub (TELEPIN/WU/etc.) applies; the difference between this and `retail_exchange_rate` represents the FX margin earned.
+
+In summary: the sender pays `remittance_amount` + `retail_fee` (in SGD), and the recipient gets `recipient_amount` (in PHP). The two amounts are **different** because they are in different currencies connected by `retail_exchange_rate`.
+
 **Transaction Status Lifecycle (TransactionStatus enum):**
 ```
 Payment phase:    PAYMENT_VALIDATED → PAYMENT_ACCEPTED → PAYMENT_PENDING
@@ -283,6 +293,20 @@ Remittance phase: TRANSACTION_SUBMITTED → TRANSACTION_IN_PROGRESS
 Refund:           *_REFUND_REQUIRED → REFUNDED / REFUND_FAILED
 Special:          FRAUD_CHECK_FAILED / FRAUD_CHECK_DECLINED / FRAUD_CHECK_TIMEOUT
 ```
+
+### `remittance.transaction` — Key Foreign Keys and Relationships
+
+The following columns in `remittance.transaction` link to other tables:
+
+| Column | References | Notes |
+|---|---|---|
+| hub_id | `service_management.external_partner.external_partner_id` | Which hub (TELEPIN/WU/THUNES/TRANGLO) processed this transaction. Cross-DB: use `hub_name` snapshot for filtering instead of joining. |
+| hub_name | Snapshot of `external_partner.external_partner_name` | Denormalized so dashboards can filter by hub without a cross-DB join. |
+| service_id | `service_management.remit_service.remit_service_id` | The corridor (sending country + receiving country + operator) used. Cross-DB: use `service_name` snapshot for filtering. |
+| service_name | Snapshot of `remit_service.service_name_display` | Denormalized corridor name. |
+| internal_transaction_id | Referenced by `payment.ml_m_sof_payment.internal_transaction_id` | One-to-one: each transaction has at most one SOF payment record. |
+
+> Cross-database joins between keycloak and ml_db are not possible in SQL. Use the denormalized snapshot columns (`hub_name`, `service_name`) for analytics queries within the keycloak DB.
 
 ### `remittance.transaction_aud`
 Hibernate Envers audit table — full history of every status change on a transaction. Same columns plus `rev`, `revtype`, `audit_date`, `salt`.

@@ -90,7 +90,9 @@
       "Bash(python -c \"from ragas import evaluate; print\\(''''RAGAS OK''''\\)\")",
       "Bash(python scripts/eval_rag.py)",
       "Bash(source /Users/ThanhNguyen/AI_WS/ai-operations-portal/ai-service/.venv/bin/activate)",
-      "Bash(echo \"venv activated: $VIRTUAL_ENV\")"
+      "Bash(echo \"venv activated: $VIRTUAL_ENV\")",
+      "Bash(git rm:*)",
+      "Bash(git check-ignore:*)"
     ]
   }
 }

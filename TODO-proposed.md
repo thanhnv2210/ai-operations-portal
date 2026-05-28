@@ -165,8 +165,8 @@
   - "Difference between remittance_amount and recipient_amount?"
   - (10 more covering other schemas/sections)
 - [x] `scripts/eval_rag.py` — RAGAS metrics: `faithfulness`, `answer_relevance`, `context_recall`; writes `docs/rag-eval-results.md`
-- [x] **Target:** context_recall **0.850** ✅ > 0.80 — passes. faithfulness 0.800 (partial, 1/15 scored — Ollama timeout); re-run with OpenAI for full scores
-- [x] `docs/rag-eval-results.md` — populated with first run results (2026-05-28)
+- [x] **Target:** context_recall **0.865** ✅ > 0.80 — passes (run 3, after fixing 2 retrieval gaps). faithfulness 1.000 (1/15 scored — Ollama timeout); re-run with OpenAI for full scores
+- [x] `docs/rag-eval-results.md` — populated with 3 iteration runs showing improvement (2026-05-28)
 
 ### Frontend — Knowledge Base Query
 - [x] `src/pages/KnowledgeBase.tsx` — separate page from AI Assistant (shows source citations)
@@ -213,5 +213,5 @@ Run frontend: `cd frontend && npm test`
 | Chunking strategies for technical docs | Phase 3 — `chunker.py` (header-based, MAX_CHARS=2000, overlap) | ✅ |
 | Embedding models (cloud vs local fallback) | Phase 3 — `embedder.py` (OpenAI / Ollama) | ✅ |
 | Hybrid search — BM25 + vector + RRF | Phase 3 — `retriever.py` (RRF k=60, threshold 0.40) | ✅ |
-| RAG evaluation (RAGAS faithfulness / context recall) | Phase 3 — `eval_rag.py` + 15-pair golden QA dataset | ✅ context_recall 0.850; faithfulness partial (Ollama timeout) |
+| RAG evaluation (RAGAS faithfulness / context recall) | Phase 3 — `eval_rag.py` + 15-pair golden QA dataset | ✅ context_recall 0.865 (3 iterations); faithfulness partial (Ollama) |
 | LLM tracing / observability | Phase 4 — Langfuse integration | [ ] |

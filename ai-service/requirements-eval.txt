@@ -1,7 +1,19 @@
 # Evaluation dependencies — not needed for the runtime service.
 # Install with: pip install -r requirements-eval.txt
 #
-# Usage: python scripts/eval_rag.py
+# Usage (from ai-service/ directory):
+#   python -m app.rag.ingestion.ingest    # ingest docs first
+#   python scripts/eval_rag.py
+#
+# LLM evaluator: Ollama qwen2.5:7b via localhost:11434/v1 (default)
+# Override model: RAGAS_OLLAMA_MODEL=llama3.1:8b python scripts/eval_rag.py
 
 ragas==0.2.15
 datasets==3.6.0
+
+# langchain-community 0.4.x removed ChatVertexAI from langchain_community.chat_models.vertexai
+# which RAGAS 0.2.15 imports unconditionally — pin to 0.3.x until RAGAS is updated.
+langchain-community<0.4.0
+
+# Required to satisfy the ChatVertexAI import path that langchain-community 0.3.x re-exports.
+langchain-google-vertexai
