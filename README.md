@@ -247,9 +247,9 @@ CI and UAT inject environment variables directly — no `.env` file needed in th
 
 | Component | URL |
 |---|---|
+| **Frontend** | `https://aiops.thanhnguyen.dev` |
 | **AI Service (Render)** | `https://ai-operations-portal-api.onrender.com` |
 | **Health check** | `https://ai-operations-portal-api.onrender.com/health` |
-| **Frontend (Vercel)** | TBD — deploy with steps below |
 
 ---
 
@@ -261,6 +261,7 @@ CI and UAT inject environment variables directly — no `.env` file needed in th
 4. Add the environment variable:
    ```
    VITE_API_URL=https://ai-operations-portal-api.onrender.com
+   # Custom domain mapped in Vercel: https://aiops.thanhnguyen.dev
    ```
 5. Deploy. Vercel uses `npm run build` automatically and serves `dist/`.
 

@@ -279,7 +279,7 @@ python -m app.rag.ingest
 |---|---|
 | AI Service (Render) | `https://ai-operations-portal-api.onrender.com` ✅ |
 | Health check | `https://ai-operations-portal-api.onrender.com/health` ✅ |
-| Frontend (Vercel) | TBD — deploy with `docs/runbook-vercel-deployment.md` |
+| Frontend (Vercel) | `https://aiops.thanhnguyen.dev` ✅ |
 
 ---
 

@@ -115,7 +115,15 @@
       "Bash(NEON_ML=\"postgresql://neondb_owner:npg_mHYp3zO5FBvb@ep-dry-cherry-aoh661hd.c-2.ap-southeast-1.aws.neon.tech/ml_db?sslmode=require\" PGPASSWORD=admin pg_dump -h localhost -p 54320 -U admin --schema=ml_schema --schema=service_management --no-owner --no-privileges ml_db)",
       "Bash(NEON_KC=\"postgresql://neondb_owner:npg_mHYp3zO5FBvb@ep-dry-cherry-aoh661hd.c-2.ap-southeast-1.aws.neon.tech/keycloak?sslmode=require\" PGPASSWORD=admin pg_dump -h localhost -p 54320 -U admin --schema-only --schema=remittance --schema=customer --schema=payment --schema=ekyc --no-owner --no-privileges keycloak)",
       "Bash(PGPASSWORD=admin psql -h localhost -p 54320 -U admin -d keycloak -c \"\nSELECT column_name FROM information_schema.columns\nWHERE table_schema='remittance' AND table_name='transaction'\nORDER BY ordinal_position;\" 2>&1)",
-      "Bash(__NEW_LINE_7546b58f18a710f2__ echo:*)"
+      "Bash(__NEW_LINE_7546b58f18a710f2__ echo:*)",
+      "Bash(CORS_ORIGINS=\"\" APP_ENV=local ML_DB_URL=\"postgresql+asyncpg://admin:admin@localhost:54320/ml_db\" KEYCLOAK_DB_URL=\"postgresql+asyncpg://admin:admin@localhost:54320/keycloak\" ANTHROPIC_API_KEY=\"x\" python -c \"from app.config import get_settings; s = get_settings\\(\\); print\\(''cors_origins:'', s.cors_origins\\)\")",
+      "Bash(BASE=\"https://ai-operations-portal-api.onrender.com\" __NEW_LINE_0ab33e84b5c72f70__ echo \"=== Transactions \\(last page, no date filter\\) ===\" curl -s \"$BASE/api/v1/transactions?from_date=2020-01-01&to_date=2026-12-31&page=1&page_size=5\")",
+      "Bash(python3 -m json.tool __NEW_LINE_0ab33e84b5c72f70__ echo \"\" echo \"=== RAG Status ===\" curl -s \"$BASE/api/v1/rag/status\")",
+      "Bash(BASE=\"https://ai-operations-portal-api.onrender.com\" __NEW_LINE_d5c1cb22b6c77b19__ echo \"=== Dashboard Overview \\(correct range\\) ===\" curl -s \"$BASE/api/v1/dashboard/overview?from_date=2025-09-01&to_date=2026-04-30\")",
+      "Bash(python3 -m json.tool __NEW_LINE_d5c1cb22b6c77b19__ echo \"\" echo \"=== Status Distribution ===\" curl -s \"$BASE/api/v1/dashboard/status-distribution?from_date=2025-09-01&to_date=2026-04-30\")",
+      "Bash(python3 -m json.tool __NEW_LINE_d5c1cb22b6c77b19__ echo \"\" echo \"=== Hub Breakdown ===\" curl -s \"$BASE/api/v1/dashboard/hub-breakdown?from_date=2025-09-01&to_date=2026-04-30\")",
+      "Bash(python3 -m json.tool __NEW_LINE_d5c1cb22b6c77b19__ echo \"\" echo \"=== Transactions \\(first 3\\) ===\" curl -s \"$BASE/api/v1/transactions?from_date=2025-09-01&to_date=2026-04-30&page=1&page_size=3\")",
+      "Bash(python3 -m json.tool __NEW_LINE_0e3ac210abf9d8bd__ echo \"\" echo \"=== Check VITE_API_URL is baked in \\(grep bundle\\) ===\" curl -s https://aiops.thanhnguyen.dev/)"
     ]
   }
 }
