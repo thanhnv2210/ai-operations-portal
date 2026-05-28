@@ -92,7 +92,11 @@
       "Bash(source /Users/ThanhNguyen/AI_WS/ai-operations-portal/ai-service/.venv/bin/activate)",
       "Bash(echo \"venv activated: $VIRTUAL_ENV\")",
       "Bash(git rm:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(pip show:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(ls /Users/ThanhNguyen/AI_WS/ai-operations-portal/docker-compose*.yml)",
+      "Bash(docker compose:*)"
     ]
   }
 }

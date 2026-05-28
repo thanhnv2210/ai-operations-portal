@@ -14,6 +14,7 @@ This is a non-streaming chain — the full answer is returned at once.
 import logging
 
 from app.llm import complete
+from app.observability import get_tracer
 from app.rag.embedder import embed
 from app.rag.retriever import SIMILARITY_THRESHOLD, retrieve
 
@@ -52,42 +53,71 @@ async def query(question: str) -> dict:
     sources is a list of:
       {chunk_text, section_title, source_file, vector_score, rrf_score}
     """
-    # Step 1: embed
-    embeddings = await embed([question])
-    question_embedding = embeddings[0]
+    tracer = get_tracer()
 
-    # Step 2: retrieve
-    chunks, best_score = await retrieve(question, question_embedding)
+    with tracer.trace(
+        "rag_query",
+        input={"question": question},
+        metadata={"pipeline": "rag"},
+    ) as trace:
 
-    log.info(
-        "RAG retrieve: question=%r chunks=%d best_vector_score=%.3f",
-        question[:80],
-        len(chunks),
-        best_score,
-    )
+        # Step 1: embed
+        with trace.span("embed_question") as span:
+            embeddings = await embed([question])
+            question_embedding = embeddings[0]
+            span.set_output({"embedding_dim": len(question_embedding)})
 
-    # Step 3: grounding guard
-    if not chunks or best_score < SIMILARITY_THRESHOLD:
-        return {"answer": _NO_CONTEXT_ANSWER, "sources": []}
+        # Step 2: retrieve
+        with trace.span("hybrid_retrieve", input={"question": question}) as span:
+            chunks, best_score = await retrieve(question, question_embedding)
+            span.set_output({
+                "chunk_count": len(chunks),
+                "best_vector_score": round(best_score, 4),
+                "sections": [c["section_title"] for c in chunks],
+            })
 
-    # Step 4 + 5: build prompt and call Claude
-    prompt = _build_prompt(question, chunks)
-    answer = await complete(
-        messages=[{"role": "user", "content": prompt}],
-        system=_SYSTEM_PROMPT,
-        max_tokens=1024,
-    )
+        log.info(
+            "RAG retrieve: question=%r chunks=%d best_vector_score=%.3f",
+            question[:80],
+            len(chunks),
+            best_score,
+        )
 
-    # Step 6: return answer + sources
-    sources = [
-        {
-            "chunk_text":    c["text"],
-            "section_title": c["section_title"],
-            "source_file":   c["source_file"],
-            "vector_score":  c.get("vector_score", 0.0),
-            "rrf_score":     c.get("rrf_score", 0.0),
-        }
-        for c in chunks
-    ]
+        # Step 3: grounding guard
+        with trace.span("grounding_guard") as span:
+            grounded = bool(chunks) and best_score >= SIMILARITY_THRESHOLD
+            span.set_output({"grounded": grounded, "best_score": round(best_score, 4), "threshold": SIMILARITY_THRESHOLD})
 
-    return {"answer": answer.strip(), "sources": sources}
+        if not grounded:
+            trace.set_output({"answer": _NO_CONTEXT_ANSWER, "grounded": False})
+            return {"answer": _NO_CONTEXT_ANSWER, "sources": []}
+
+        # Step 4 + 5: build prompt and call Claude
+        prompt = _build_prompt(question, chunks)
+        with trace.span("claude_answer", input={"chunk_count": len(chunks)}) as span:
+            answer = await complete(
+                messages=[{"role": "user", "content": prompt}],
+                system=_SYSTEM_PROMPT,
+                max_tokens=1024,
+            )
+            span.set_output({"answer_length": len(answer)})
+
+        # Step 6: return answer + sources
+        sources = [
+            {
+                "chunk_text":    c["text"],
+                "section_title": c["section_title"],
+                "source_file":   c["source_file"],
+                "vector_score":  c.get("vector_score", 0.0),
+                "rrf_score":     c.get("rrf_score", 0.0),
+            }
+            for c in chunks
+        ]
+
+        trace.set_output({
+            "answer": answer.strip()[:200],
+            "sources_count": len(sources),
+            "best_vector_score": round(best_score, 4),
+        })
+
+        return {"answer": answer.strip(), "sources": sources}

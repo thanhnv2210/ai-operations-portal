@@ -191,6 +191,39 @@ Interactive API docs: `http://localhost:8007/docs` (local only).
 | `ANTHROPIC_API_KEY` | Yes | Claude claude-opus-4-6 for SQL + RAG chain |
 | `OPENAI_API_KEY` | No | Better embeddings (`text-embedding-3-small`); falls back to Ollama |
 | `OLLAMA_BASE_URL` | No | Default `http://localhost:11434` |
+| `LANGFUSE_PUBLIC_KEY` | No | Enables LLM tracing (see below) |
+| `LANGFUSE_SECRET_KEY` | No | Enables LLM tracing |
+| `LANGFUSE_HOST` | No | Default `https://cloud.langfuse.com`; set to `http://localhost:3000` for self-hosted |
+
+### LLM Observability (Langfuse)
+
+Both AI pipelines are instrumented with [Langfuse](https://langfuse.com) traces. When `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are set, every query produces a structured trace:
+
+```
+text_to_sql trace
+├── generate_sql      (Claude — SQL generation)
+├── validate_sql      (local regex check)
+├── explain_dry_run   (PostgreSQL EXPLAIN)
+├── execute_sql       (DB round-trip, row_count)
+└── stream_explanation (Claude — streaming tokens)
+
+rag_query trace
+├── embed_question    (nomic-embed-text / text-embedding-3-small)
+├── hybrid_retrieve   (BM25 + ChromaDB + RRF, best_score, sections)
+├── grounding_guard   (similarity threshold check)
+└── claude_answer     (Claude — grounded answer)
+```
+
+**Self-hosted (free, local):**
+```bash
+docker run -p 3020:3000 langfuse/langfuse   # port 3020 — see workspace-local-ports.md
+# Add to .env.local:
+# LANGFUSE_HOST=http://localhost:3020
+# LANGFUSE_PUBLIC_KEY=pk-lf-...   # from http://localhost:3020
+# LANGFUSE_SECRET_KEY=sk-lf-...
+```
+
+Tracing is **opt-in and zero-impact** — all pipelines run normally without any degradation when keys are not set.
 
 ## Multi-Environment Config
 

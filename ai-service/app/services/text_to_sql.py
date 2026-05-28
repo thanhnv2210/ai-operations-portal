@@ -21,6 +21,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import complete, stream_response
+from app.observability import get_tracer
 from app.schema_context.loader import get_schema_context
 from app.schema_context.relationships import get_relationships
 from app.schema_context.status_ref import get_status_ref
@@ -177,82 +178,118 @@ async def run(
     ml_session: AsyncSession,
 ) -> AsyncGenerator[dict, None]:
     """Execute the full Text-to-SQL pipeline, yielding typed SSE event dicts."""
+    tracer = get_tracer()
 
-    # ── Step 1: Generate SQL ─────────────────────────────────────────────────
-    yield {"type": "status", "text": "Generating SQL..."}
-    try:
-        sql = await asyncio.wait_for(_generate_sql(question), timeout=60)
-    except asyncio.TimeoutError:
-        yield {"type": "error", "code": "sql_generation_failed", "message": "SQL generation timed out."}
-        return
-    except Exception as exc:
-        log.error("SQL generation failed: %s", exc)
-        yield {"type": "error", "code": "sql_generation_failed", "message": "Failed to generate SQL for that question."}
-        return
+    with tracer.trace(
+        "text_to_sql",
+        input={"question": question},
+        metadata={"pipeline": "text_to_sql"},
+    ) as trace:
 
-    # ── Step 2: Safety validation ────────────────────────────────────────────
-    err = _validate(sql)
-    if err:
-        yield {"type": "error", "code": "sql_validation_rejected", "message": err}
-        return
+        # ── Step 1: Generate SQL ─────────────────────────────────────────────
+        yield {"type": "status", "text": "Generating SQL..."}
+        try:
+            with trace.span("generate_sql", input={"question": question}) as span:
+                sql = await asyncio.wait_for(_generate_sql(question), timeout=60)
+                span.set_output({"sql": sql})
+        except asyncio.TimeoutError:
+            trace.update(output={"error": "sql_generation_timeout"})
+            yield {"type": "error", "code": "sql_generation_failed", "message": "SQL generation timed out."}
+            return
+        except Exception as exc:
+            log.error("SQL generation failed: %s", exc)
+            trace.update(output={"error": "sql_generation_failed"})
+            yield {"type": "error", "code": "sql_generation_failed", "message": "Failed to generate SQL for that question."}
+            return
 
-    # Emit the SQL so the frontend can show it before execution
-    yield {"type": "sql", "sql": sql}
+        # ── Step 2: Safety validation ────────────────────────────────────────
+        with trace.span("validate_sql", input={"sql": sql}) as span:
+            err = _validate(sql)
+            span.set_output({"valid": err is None, "error": err})
+        if err:
+            trace.update(output={"error": "sql_validation_rejected", "sql": sql})
+            yield {"type": "error", "code": "sql_validation_rejected", "message": err}
+            return
 
-    # ── Step 3: DB routing ───────────────────────────────────────────────────
-    engine_target = _detect_engine(sql)
-    if engine_target == "cross":
-        yield {
-            "type": "error",
-            "code": "sql_validation_rejected",
-            "message": (
-                "Query spans two databases (Keycloak + ML DB). "
-                "Please ask about transaction data or reference data separately."
-            ),
-        }
-        return
+        # Emit the SQL so the frontend can show it before execution
+        yield {"type": "sql", "sql": sql}
 
-    session = keycloak_session if engine_target == "keycloak" else ml_session
+        # ── Step 3: DB routing ───────────────────────────────────────────────
+        engine_target = _detect_engine(sql)
+        trace.update(metadata={"engine": engine_target, "sql": sql})
 
-    # ── Step 4: EXPLAIN dry-run ──────────────────────────────────────────────
-    yield {"type": "status", "text": "Validating query..."}
-    try:
-        await session.execute(text(f"EXPLAIN {sql}"))
-    except Exception as exc:
-        yield {
-            "type": "error",
-            "code": "sql_generation_failed",
-            "message": f"Query validation failed — likely an invalid column or table name. Detail: {exc}",
-        }
-        return
+        if engine_target == "cross":
+            trace.update(output={"error": "cross_db_query"})
+            yield {
+                "type": "error",
+                "code": "sql_validation_rejected",
+                "message": (
+                    "Query spans two databases (Keycloak + ML DB). "
+                    "Please ask about transaction data or reference data separately."
+                ),
+            }
+            return
 
-    # ── Step 5: Execute ──────────────────────────────────────────────────────
-    yield {"type": "status", "text": "Executing query..."}
-    try:
-        result = await asyncio.wait_for(
-            session.execute(text(sql)),
-            timeout=15,
-        )
-        rows_raw = result.fetchall()
-        keys = list(result.keys())
-        rows = [dict(zip(keys, row)) for row in rows_raw]
-    except asyncio.TimeoutError:
-        yield {
-            "type": "error",
-            "code": "db_execution_error",
-            "message": "Query timed out after 15 seconds — try adding a narrower date range or filter.",
-        }
-        return
-    except Exception as exc:
-        log.error("Query execution error: %s", exc)
-        yield {"type": "error", "code": "db_execution_error", "message": f"Query execution failed: {exc}"}
-        return
+        session = keycloak_session if engine_target == "keycloak" else ml_session
 
-    if not rows:
-        yield {"type": "error", "code": "no_results", "message": "No data found for that query."}
-        return
+        # ── Step 4: EXPLAIN dry-run ──────────────────────────────────────────
+        yield {"type": "status", "text": "Validating query..."}
+        try:
+            with trace.span("explain_dry_run", input={"sql": sql}) as span:
+                await session.execute(text(f"EXPLAIN {sql}"))
+                span.set_output({"valid": True})
+        except Exception as exc:
+            trace.update(output={"error": "explain_failed", "detail": str(exc)})
+            yield {
+                "type": "error",
+                "code": "sql_generation_failed",
+                "message": f"Query validation failed — likely an invalid column or table name. Detail: {exc}",
+            }
+            return
 
-    # ── Step 6: Stream explanation ───────────────────────────────────────────
-    yield {"type": "status", "text": "Generating explanation..."}
-    async for token in _explain_results(question, sql, rows):
-        yield {"type": "token", "text": token}
+        # ── Step 5: Execute ──────────────────────────────────────────────────
+        yield {"type": "status", "text": "Executing query..."}
+        try:
+            with trace.span("execute_sql", input={"sql": sql, "engine": engine_target}) as span:
+                result = await asyncio.wait_for(
+                    session.execute(text(sql)),
+                    timeout=15,
+                )
+                rows_raw = result.fetchall()
+                keys = list(result.keys())
+                rows = [dict(zip(keys, row)) for row in rows_raw]
+                span.set_output({"row_count": len(rows)})
+        except asyncio.TimeoutError:
+            trace.update(output={"error": "db_timeout"})
+            yield {
+                "type": "error",
+                "code": "db_execution_error",
+                "message": "Query timed out after 15 seconds — try adding a narrower date range or filter.",
+            }
+            return
+        except Exception as exc:
+            log.error("Query execution error: %s", exc)
+            trace.update(output={"error": "db_execution_error", "detail": str(exc)})
+            yield {"type": "error", "code": "db_execution_error", "message": f"Query execution failed: {exc}"}
+            return
+
+        if not rows:
+            trace.update(output={"error": "no_results", "sql": sql})
+            yield {"type": "error", "code": "no_results", "message": "No data found for that query."}
+            return
+
+        # ── Step 6: Stream explanation ───────────────────────────────────────
+        yield {"type": "status", "text": "Generating explanation..."}
+        explanation_tokens: list[str] = []
+        with trace.span("stream_explanation", input={"row_count": len(rows)}) as span:
+            async for token in _explain_results(question, sql, rows):
+                explanation_tokens.append(token)
+                yield {"type": "token", "text": token}
+            span.set_output({"explanation_length": sum(len(t) for t in explanation_tokens)})
+
+        trace.set_output({
+            "sql": sql,
+            "engine": engine_target,
+            "row_count": len(rows),
+            "explanation_chars": sum(len(t) for t in explanation_tokens),
+        })

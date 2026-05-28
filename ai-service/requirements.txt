@@ -18,6 +18,9 @@ httpx==0.28.1
 # AI
 anthropic==0.42.0
 
+# Observability — LLM tracing (optional: only active when LANGFUSE_* env vars are set)
+langfuse>=2.0.0
+
 # RAG — vector store + hybrid search
 chromadb==0.6.3
 rank-bm25==0.2.2

@@ -1,0 +1,53 @@
+services:
+  langfuse:
+    image: langfuse/langfuse:2    # v2: only needs PostgreSQL (v3 requires ClickHouse — too heavy for local dev)
+    restart: unless-stopped
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+    ports:
+      - "3020:3000"   # workspace-local-ports.md: port 3020 reserved for Langfuse
+    environment:
+      DATABASE_URL: postgresql://langfuse:langfuse@langfuse-db:5432/langfuse
+      NEXTAUTH_URL: http://localhost:3020
+      NEXTAUTH_SECRET: local-dev-secret-change-in-prod
+      SALT: local-dev-salt-change-in-prod
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+
+  langfuse-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse
+      POSTGRES_DB: langfuse
+    volumes:
+      - langfuse_db:/var/lib/postgresql/data
+
+volumes:
+  langfuse_db:
+    driver: local
+
+# Usage:
+#   docker compose -f infrastructure/docker-compose.langfuse.yml up -d
+#   open http://localhost:3020
+#
+# First run:
+#   1. Sign up at http://localhost:3020 (local account — no email verification)
+#   2. Create a project → Settings → API Keys → Create new API key
+#   3. Add to ai-service/.env.local:
+#        LANGFUSE_PUBLIC_KEY=pk-lf-...
+#        LANGFUSE_SECRET_KEY=sk-lf-...
+#        LANGFUSE_HOST=http://localhost:3020
+#
+# Stop:
+#   docker compose -f infrastructure/docker-compose.langfuse.yml down
+#
+# Stop and wipe data:
+#   docker compose -f infrastructure/docker-compose.langfuse.yml down -v
