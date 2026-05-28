@@ -32,8 +32,8 @@ DOCS ->  CHK  : raw Markdown text
 note right of CHK
   Strategy: split on ## / ### headers
   - Each section = one or more chunks
-  - Max 500 tokens per chunk
-  - 50-token overlap between adjacent chunks
+  - MAX_CHARS = 2000 chars per chunk
+  - 200-char overlap between adjacent chunks
   - Metadata attached per chunk:
       source_file, section_title, table_name
   Example chunk:
@@ -91,6 +91,7 @@ participant "Retriever\n(hybrid search)"  as RTV #DBEAFE
 participant "ChromaDB"   as VDB  #D1FAE5
 participant "BM25 Index" as BM25 #D1FAE5
 participant "claude-opus-4-6" as LLM #FCE7F3
+participant "Langfuse"   as LF  #FEF3C7
 
 '--------------------------------------------------------------
 ' PART 2 — QUERY (runtime, per user request)
@@ -100,14 +101,18 @@ participant "claude-opus-4-6" as LLM #FCE7F3
 
 U   ->  FE  : "What columns carry PII\nin remittance.transaction?"
 FE  ->  API : POST /api/v1/rag/query\n{ "question": "..." }
+API ->  LF  : trace.start("rag_query")\n{ input: { question }, tags: [APP_ENV] }
 
 == Step 2: Embed the question ==
 
+API ->  LF  : span.start("embed_question")
 API ->  RTV : question text
 RTV ->  RTV : embed question\n(same model used at ingestion time)
+API ->  LF  : span.end("embed_question") { embedding_dim }
 
 == Step 3: Dual retrieval — vector + BM25 ==
 
+API ->  LF  : span.start("hybrid_retrieve")
 RTV ->  VDB  : cosine similarity search\n(top-8 semantic matches)
 VDB --> RTV  : ranked chunks [ ] with scores
 
@@ -121,7 +126,7 @@ note right of RTV
   Reciprocal Rank Fusion (k=60):
 
   For each chunk in both lists:
-    rrf_score += 1 / (rank + k)
+    rrf_score += 1 / (rank + 1 + k)
 
   Final ranking = sum of rrf_scores
   across vector list + BM25 list.
@@ -137,10 +142,14 @@ note right of RTV
     a fusion weight hyperparameter.
 end note
 RTV --> API  : top-6 chunks\n[ { chunk_text, section_title, source_file, score } ]
+API ->  LF  : span.end("hybrid_retrieve")\n{ chunk_count, best_vector_score, sections }
 
 == Step 5: Grounding guard ==
 
+API ->  LF  : span.start("grounding_guard")
 alt max retrieval score < 0.4
+    API ->  LF  : span.end("grounding_guard") { grounded: false }
+    API ->  LF  : trace.end { answer: "not enough context" }
     API --> FE : { answer: "Not enough relevant\ncontext found.", sources: [] }
     FE  --> U  : "Not enough relevant context found."
     note right of API
@@ -150,9 +159,11 @@ alt max retrieval score < 0.4
       than a confident wrong answer.
     end note
 end
+API ->  LF  : span.end("grounding_guard") { grounded: true }
 
 == Step 6: Claude answers grounded in context ==
 
+API ->  LF  : span.start("claude_answer")
 API ->  LLM : system prompt + numbered context blocks\n+ user question
 note right of LLM
   Prompt structure:
@@ -175,6 +186,8 @@ note right of LLM
 end note
 
 LLM --> API : answer text (with [1], [2] citations)
+API ->  LF  : span.end("claude_answer") { answer_length }
+API ->  LF  : trace.end { sources_count, best_vector_score }
 
 == Step 7: Return answer + source cards ==
 

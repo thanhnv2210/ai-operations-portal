@@ -1,6 +1,6 @@
 # TODO — AI Operations Portal (Proposed)
 
-> Last updated: 2026-05-28 (Phase 2 + Phase 3 implemented; all unit tests passing)
+> Last updated: 2026-05-28 (Phase 2 + Phase 3 + Langfuse + Query History + Font Scaling implemented)
 > **Learning goal:** Text-to-SQL (Phase 2) → RAG Pipeline (Phase 3). Both skills target AI Engineer / Solution Architect roles per the workspace roadmap.
 
 ## Status Overview
@@ -20,6 +20,11 @@
 | Unit tests (backend 101 + frontend 29) | Done |
 | Ingest CLI shim (`python -m app.rag.ingest`) | Done |
 | README.md updated (Phase 2 + 3, RAG eval scores) | Done |
+| Langfuse LLM observability (Text-to-SQL + RAG traces, env tags) | Done |
+| Query history — DB-backed (ops_db, PostgreSQL) + favorites | Done |
+| Font scaling — auto-detect from screen.width + manual override | Done |
+| Environment verification doc (`docs/environment-verification.md`) | Done |
+| workspace-local-ports.md updated (ports 3007, 8007, Langfuse 3020) | Done |
 | Deployment | Not started |
 
 ---
@@ -201,7 +206,9 @@ Run frontend: `cd frontend && npm test`
 - [ ] Cloud DB — confirm non-prod DB reachable from Railway, or seed a demo Neon DB with anonymized data
 - [ ] `README.md` — architecture diagram, Text-to-SQL demo (question → SQL → answer), RAG eval scores table
 - [ ] Add project card to `portfolio` — stack, live URL, RAG eval scores as concrete quality signal
-- [ ] LLM observability — integrate **Langfuse** for tracing Text-to-SQL + RAG calls; measure latency + token cost per query type
+- [x] LLM observability — **Langfuse** tracing for Text-to-SQL + RAG; 5 spans per pipeline; env tags (`local`/`uat`); self-hosted on port 3020
+- [ ] RAGAS full evaluation — faithfulness + answer_relevancy (requires OpenAI key; Ollama times out on 15 pairs)
+- [ ] Session isolation for query history — add `session_id` (browser cookie) to `query_history` table once multi-user support is needed
 
 ---
 
@@ -216,4 +223,4 @@ Run frontend: `cd frontend && npm test`
 | Embedding models (cloud vs local fallback) | Phase 3 — `embedder.py` (OpenAI / Ollama) | ✅ |
 | Hybrid search — BM25 + vector + RRF | Phase 3 — `retriever.py` (RRF k=60, threshold 0.40) | ✅ |
 | RAG evaluation (RAGAS faithfulness / context recall) | Phase 3 — `eval_rag.py` + 15-pair golden QA dataset | ✅ context_recall 0.865 (3 iterations); faithfulness partial (Ollama) |
-| LLM tracing / observability | Phase 4 — Langfuse integration | [ ] |
+| LLM tracing / observability | Phase 4 — Langfuse; 5 spans per pipeline; env tags | ✅ |

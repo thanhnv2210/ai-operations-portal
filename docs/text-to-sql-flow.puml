@@ -23,12 +23,15 @@ participant "Schema\nContext Layer"  as SCL #DBEAFE
 participant "claude-opus-4-6"        as LLM #FCE7F3
 database    "keycloak DB\n(remittance / payment)" as KDB #D1FAE5
 database    "ml_db\n(ml_schema / service_mgmt)"   as MDB #D1FAE5
+database    "ops_db\n(query_history)"              as ODB #E0E7FF
+participant "Langfuse"    as LF  #FEF3C7
 
 == Step 1: User asks a natural language question ==
 
 U   ->  FE  : "How many transactions failed today\nbroken down by hub?"
 FE  ->  API : POST /api/v1/assistant/query\n{ "question": "..." }
 API ->  FE  : SSE stream open (text/event-stream)
+API ->  LF  : trace.start("text_to_sql")\n{ input: { question } }
 
 == Step 2: Build schema context ==
 
@@ -56,6 +59,7 @@ API --> FE  : {type:"status", text:"Generating SQL..."}
 
 == Step 3: Claude generates SQL ==
 
+API ->  LF  : span.start("generate_sql")
 API ->  LLM : system prompt + schema context\n+ few-shot examples + user question
 note right of LLM
   Few-shot examples in prompt:
@@ -67,17 +71,22 @@ note right of LLM
      GROUP BY hub_name
 end note
 LLM --> API : generated SQL string
+API ->  LF  : span.end("generate_sql") { sql }
 
 API --> FE  : {type:"sql", sql:"SELECT hub_name, COUNT(*) ..."}
 
 == Step 4: Validate SQL ==
 
+API ->  LF  : span.start("validate_sql")
 API ->  API : safety check — reject if\nINSERT / UPDATE / DELETE /\nDROP / CREATE / TRUNCATE
+API ->  LF  : span.end("validate_sql") { valid }
 
 alt SQL contains write operation
+    API ->  LF  : trace.end — level ERROR
     API --> FE : {type:"error", code:"sql_validation_rejected",\nmessage:"I can only run read queries"}
     FE  --> U  : "I can only run read queries"
 else SQL is SELECT-only
+    API ->  LF  : span.start("explain_dry_run")
     API ->  KDB : EXPLAIN <generated SQL> (dry-run)
     note right of KDB
       EXPLAIN forces the DB planner to
@@ -85,8 +94,10 @@ else SQL is SELECT-only
       executing it — catches bad column
       names and syntax errors cheaply.
     end note
+    API ->  LF  : span.end("explain_dry_run") { valid }
     alt EXPLAIN fails (bad column / syntax)
         KDB --> API : PlannerError
+        API ->  LF  : trace.end — level ERROR
         API --> FE  : {type:"error", code:"sql_generation_failed",\nmessage:"Could not generate valid SQL"}
         FE  --> U   : error message
     end
@@ -101,6 +112,7 @@ note over API
   - cross-schema query                     → query both, join in Python
 end note
 
+API ->  LF  : span.start("execute_sql")
 alt query targets keycloak schema
     API ->  KDB : execute SQL
     KDB --> API : result rows
@@ -114,6 +126,7 @@ else cross-DB query
     MDB --> API : partial rows
     API ->  API : merge results in Python
 end
+API ->  LF  : span.end("execute_sql") { row_count, engine }
 
 alt no rows returned
     API --> FE : {type:"error", code:"no_results",\nmessage:"No data found for that query"}
@@ -121,6 +134,7 @@ end
 
 == Step 6: Claude explains the result ==
 
+API ->  LF  : span.start("stream_explanation")
 API ->  LLM : original question + result rows
 note right of LLM
   "Given this data, explain in 2-4
@@ -132,9 +146,22 @@ end note
 LLM --> API : explanation tokens (streaming)
 API --> FE  : {type:"token", text:"Today there were..."} x N
 API --> FE  : [DONE]
+API ->  LF  : span.end("stream_explanation") { explanation_chars }
+API ->  LF  : trace.end { sql, engine, row_count }
+
+== Step 7: Save to query history ==
+
+API ->  ODB : INSERT query_history\n{ question, sql, timestamp }
+note right of ODB
+  Stored in ops_db (portal-owned).
+  Deduplicates by question (keeps latest).
+  Max 50 entries; favorites are preserved
+  when history is cleared.
+  Tags trace with APP_ENV (local / uat).
+end note
 
 == Rendered in Frontend ==
 
-FE  --> U   : SQL block (collapsible) +\nexplanation text (streamed)
+FE  --> U   : SQL block (collapsible) +\nexplanation text (streamed)\n+ History panel updated
 
 @enduml
