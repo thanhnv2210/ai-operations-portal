@@ -17,9 +17,9 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false          # set after Vercel deploy: ["https://your-app.vercel.app"]
-      - key: OPENAI_API_KEY
-        sync: false          # optional — better RAG embeddings
-      - key: LANGFUSE_PUBLIC_KEY
-        sync: false          # optional — LLM tracing
-      - key: LANGFUSE_SECRET_KEY
-        sync: false          # optional — LLM tracing
+      - key: PORTAL_DB_URL
+        value: sqlite+aiosqlite:///./portal_data.db   # query history — ephemeral SQLite, resets on redeploy
+      # Optional — add later when available:
+      # - key: OPENAI_API_KEY        # better RAG embeddings (text-embedding-3-small); falls back to Ollama
+      # - key: LANGFUSE_PUBLIC_KEY   # LLM tracing
+      # - key: LANGFUSE_SECRET_KEY   # LLM tracing
