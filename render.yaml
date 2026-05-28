@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: ai-operations-portal-api
+    runtime: docker
+    dockerfilePath: ./ai-service/Dockerfile
+    dockerContext: ./ai-service
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: uat
+      - key: ANTHROPIC_API_KEY
+        sync: false          # set manually in Render dashboard — never commit secrets
+      - key: ML_DB_URL
+        sync: false
+      - key: KEYCLOAK_DB_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false          # set after Vercel deploy: ["https://your-app.vercel.app"]
+      - key: OPENAI_API_KEY
+        sync: false          # optional — better RAG embeddings
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false          # optional — LLM tracing
+      - key: LANGFUSE_SECRET_KEY
+        sync: false          # optional — LLM tracing
