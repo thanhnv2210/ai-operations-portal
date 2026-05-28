@@ -243,6 +243,16 @@ CI and UAT inject environment variables directly — no `.env` file needed in th
 
 ## Deployment
 
+### Live URLs
+
+| Component | URL |
+|---|---|
+| **AI Service (Render)** | `https://ai-operations-portal-api.onrender.com` |
+| **Health check** | `https://ai-operations-portal-api.onrender.com/health` |
+| **Frontend (Vercel)** | TBD — deploy with steps below |
+
+---
+
 ### Frontend → Vercel
 
 1. Push the repo to GitHub.
@@ -250,39 +260,32 @@ CI and UAT inject environment variables directly — no `.env` file needed in th
 3. Set **Root Directory** to `frontend`.
 4. Add the environment variable:
    ```
-   VITE_API_URL=https://<your-railway-app>.up.railway.app
+   VITE_API_URL=https://ai-operations-portal-api.onrender.com
    ```
 5. Deploy. Vercel uses `npm run build` automatically and serves `dist/`.
 
 `vercel.json` handles SPA routing (all paths fall back to `index.html`).
 
-> **Order matters:** deploy the ai-service to Railway first to get the URL, then set `VITE_API_URL` in Vercel before deploying the frontend.
-
 ---
 
-### AI Service → Railway
+### AI Service → Render (deployed)
 
-1. In the [Railway dashboard](https://railway.app), create a new project → **Deploy from GitHub repo**.
-2. Set **Root Directory** to `ai-service`.
-3. Railway auto-detects the `Dockerfile`. Set the required environment variables:
+Deployed via `render.yaml` Blueprint. See [`docs/runbook-render-deployment.md`](docs/runbook-render-deployment.md) for the full setup guide.
 
-   | Variable | Value |
-   |---|---|
-   | `APP_ENV` | `uat` |
-   | `ML_DB_URL` | `postgresql+asyncpg://<user>:<pass>@<host>:<port>/ml_db` |
-   | `KEYCLOAK_DB_URL` | `postgresql+asyncpg://<user>:<pass>@<host>:<port>/keycloak` |
-   | `ANTHROPIC_API_KEY` | `sk-ant-...` |
-   | `CORS_ORIGINS` | `["https://<your-vercel-app>.vercel.app"]` |
-   | `OPENAI_API_KEY` | *(optional)* better embeddings for RAG |
-   | `LANGFUSE_PUBLIC_KEY` | *(optional)* LLM tracing |
-   | `LANGFUSE_SECRET_KEY` | *(optional)* LLM tracing |
+Required environment variables (set in Render dashboard):
 
-4. After the first deploy, **run the RAG ingest** as a one-off Railway job:
-   ```bash
-   python -m app.rag.ingest
-   ```
-   This populates the ChromaDB vector store (`rag_data/`) needed for Knowledge Base queries.
-   > Note: `rag_data/` and query history (`portal_data.db`) are ephemeral on Railway — they reset on each deploy. For persistence, mount a Railway volume at `/app/rag_data` and `/app/portal_data.db`.
+| Variable | Value |
+|---|---|
+| `APP_ENV` | `uat` |
+| `ML_DB_URL` | Neon asyncpg connection string for `ml_db` |
+| `KEYCLOAK_DB_URL` | Neon asyncpg connection string for `keycloak` |
+| `ANTHROPIC_API_KEY` | `sk-ant-...` |
+| `CORS_ORIGINS` | `["https://<your-vercel-app>.vercel.app"]` *(update after Vercel deploy)* |
+| `OPENAI_API_KEY` | *(optional)* better embeddings for RAG |
+| `LANGFUSE_PUBLIC_KEY` | *(optional)* LLM tracing |
+| `LANGFUSE_SECRET_KEY` | *(optional)* LLM tracing |
+
+> **Note:** `rag_data/` (ChromaDB) is baked into the Docker image from local. `portal_data.db` (query history) resets on each deploy — ephemeral SQLite.
 
 ---
 

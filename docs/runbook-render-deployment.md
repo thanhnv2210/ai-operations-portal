@@ -277,9 +277,9 @@ python -m app.rag.ingest
 
 | Component | URL |
 |---|---|
-| AI Service (Render) | `https://ai-operations-portal-api.onrender.com` |
-| Health check | `https://ai-operations-portal-api.onrender.com/health` |
-| Frontend (Vercel) | `https://<your-app>.vercel.app` *(after Vercel deploy)* |
+| AI Service (Render) | `https://ai-operations-portal-api.onrender.com` ✅ |
+| Health check | `https://ai-operations-portal-api.onrender.com/health` ✅ |
+| Frontend (Vercel) | TBD — deploy with `docs/runbook-vercel-deployment.md` |
 
 ---
 
