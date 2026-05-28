@@ -96,7 +96,14 @@
       "Bash(pip show:*)",
       "Bash(grep -v \"^$\")",
       "Bash(ls /Users/ThanhNguyen/AI_WS/ai-operations-portal/docker-compose*.yml)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(kill 19695)",
+      "Bash(python3 -c \"import langfuse; print\\(langfuse.__version__\\); print\\(dir\\(langfuse.Langfuse\\(\\)\\)\\)\")",
+      "Bash(sed -n '55,100p' /Users/ThanhNguyen/AI_WS/ai-operations-portal/ai-service/app/rag/chain.py)",
+      "Bash(sed -n '180,250p' /Users/ThanhNguyen/AI_WS/ai-operations-portal/ai-service/app/services/text_to_sql.py)",
+      "Bash(pip index:*)",
+      "Bash(python3 -c \"import langfuse; print\\(langfuse.__version__\\)\")",
+      "Bash(aiops-status)"
     ]
   }
 }
