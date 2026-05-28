@@ -32,3 +32,6 @@ frontend/.vite/
 # OS
 .DS_Store
 Thumbs.db
+
+# Portal DB (SQLite for local dev — never commit)
+ai-service/portal_data.db

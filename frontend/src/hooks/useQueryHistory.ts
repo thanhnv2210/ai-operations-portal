@@ -1,81 +1,74 @@
 import { useCallback, useEffect, useState } from 'react'
 
-const STORAGE_KEY = 'aiops:query-history'
-const MAX_ENTRIES = 50
-
 export interface QueryHistoryEntry {
   id: string
-  timestamp: string
+  timestamp: string   // ISO 8601
   question: string
   sql: string
-  isFavorite: boolean
+  is_favorite: boolean
 }
 
-function load(): QueryHistoryEntry[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
-  } catch {
-    return []
-  }
-}
-
-function save(entries: QueryHistoryEntry[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries))
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, init)
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  if (res.status === 204) return undefined as T
+  return res.json() as Promise<T>
 }
 
 export function useQueryHistory() {
-  const [entries, setEntries] = useState<QueryHistoryEntry[]>(load)
+  const [entries, setEntries] = useState<QueryHistoryEntry[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Sync across tabs
-  useEffect(() => {
-    function onStorage(e: StorageEvent) {
-      if (e.key === STORAGE_KEY) setEntries(load())
+  const fetchAll = useCallback(async () => {
+    try {
+      const data = await apiFetch<QueryHistoryEntry[]>('/api/v1/history')
+      setEntries(data)
+    } catch {
+      // silently ignore — history is non-critical
+    } finally {
+      setLoading(false)
     }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
   }, [])
 
-  const add = useCallback((question: string, sql: string) => {
-    setEntries(prev => {
-      const entry: QueryHistoryEntry = {
-        id: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-        question,
-        sql,
-        isFavorite: false,
-      }
-      // Deduplicate: remove previous identical question (keep latest)
-      const deduped = prev.filter(e => e.question !== question)
-      const next = [entry, ...deduped].slice(0, MAX_ENTRIES)
-      save(next)
-      return next
-    })
+  useEffect(() => { fetchAll() }, [fetchAll])
+
+  const add = useCallback(async (question: string, sql: string) => {
+    try {
+      const entry = await apiFetch<QueryHistoryEntry>('/api/v1/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, sql }),
+      })
+      // Server deduplicates and returns the new entry; refresh to reflect order
+      setEntries(prev => {
+        const deduped = prev.filter(e => e.question !== question)
+        return [entry, ...deduped]
+      })
+    } catch { /* non-critical */ }
   }, [])
 
-  const toggleFavorite = useCallback((id: string) => {
-    setEntries(prev => {
-      const next = prev.map(e => e.id === id ? { ...e, isFavorite: !e.isFavorite } : e)
-      save(next)
-      return next
-    })
+  const toggleFavorite = useCallback(async (id: string) => {
+    try {
+      const updated = await apiFetch<QueryHistoryEntry>(`/api/v1/history/${id}/favorite`, {
+        method: 'PATCH',
+      })
+      setEntries(prev => prev.map(e => e.id === id ? updated : e))
+    } catch { /* non-critical */ }
   }, [])
 
-  const remove = useCallback((id: string) => {
-    setEntries(prev => {
-      const next = prev.filter(e => e.id !== id)
-      save(next)
-      return next
-    })
+  const remove = useCallback(async (id: string) => {
+    try {
+      await apiFetch<void>(`/api/v1/history/${id}`, { method: 'DELETE' })
+      setEntries(prev => prev.filter(e => e.id !== id))
+    } catch { /* non-critical */ }
   }, [])
 
-  const clear = useCallback(() => {
-    setEntries(prev => {
-      // Keep favorites when clearing
-      const next = prev.filter(e => e.isFavorite)
-      save(next)
-      return next
-    })
+  const clear = useCallback(async () => {
+    try {
+      await apiFetch<void>('/api/v1/history', { method: 'DELETE' })
+      setEntries(prev => prev.filter(e => e.is_favorite))
+    } catch { /* non-critical */ }
   }, [])
 
-  return { entries, add, toggleFavorite, remove, clear }
+  return { entries, loading, add, toggleFavorite, remove, clear }
 }

@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     # --- Database ---
     ml_db_url: str = Field(..., description="postgresql+asyncpg URL for ml_db")
     keycloak_db_url: str = Field(..., description="postgresql+asyncpg URL for keycloak DB")
+    portal_db_url: str = Field(
+        default="sqlite+aiosqlite:///./portal_data.db",
+        description="Portal-owned DB for query history etc. SQLite by default; swap to PostgreSQL in prod.",
+    )
 
     # --- AI ---
     anthropic_api_key: str = Field(..., description="Anthropic API key")

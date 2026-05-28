@@ -25,8 +25,8 @@ export function QueryHistoryPanel({ entries, onSelect, onToggleFavorite, onRemov
   const [filter, setFilter] = useState<'all' | 'favorites'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const displayed = filter === 'favorites' ? entries.filter(e => e.isFavorite) : entries
-  const favoriteCount = entries.filter(e => e.isFavorite).length
+  const displayed = filter === 'favorites' ? entries.filter(e => e.is_favorite) : entries
+  const favoriteCount = entries.filter(e => e.is_favorite).length
 
   if (entries.length === 0) {
     return (
@@ -65,7 +65,7 @@ export function QueryHistoryPanel({ entries, onSelect, onToggleFavorite, onRemov
             Favorites ({favoriteCount})
           </button>
         </div>
-        {entries.some(e => !e.isFavorite) && (
+        {entries.some(e => !e.is_favorite) && (
           <button
             onClick={onClear}
             className="text-xs text-faint hover:text-muted-foreground transition-colors"
@@ -97,14 +97,14 @@ export function QueryHistoryPanel({ entries, onSelect, onToggleFavorite, onRemov
                 <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => onToggleFavorite(entry.id)}
-                    title={entry.isFavorite ? 'Remove from favorites' : 'Save to favorites'}
+                    title={entry.is_favorite ? 'Remove from favorites' : 'Save to favorites'}
                     className={`rounded p-1 transition-colors ${
-                      entry.isFavorite
+                      entry.is_favorite
                         ? 'text-amber-400 hover:text-amber-300'
                         : 'text-faint hover:text-amber-400'
                     }`}
                   >
-                    <Star size={13} fill={entry.isFavorite ? 'currentColor' : 'none'} />
+                    <Star size={13} fill={entry.is_favorite ? 'currentColor' : 'none'} />
                   </button>
                   <button
                     onClick={() => onRemove(entry.id)}
@@ -116,7 +116,7 @@ export function QueryHistoryPanel({ entries, onSelect, onToggleFavorite, onRemov
                 </div>
 
                 {/* Always-visible favorite indicator */}
-                {entry.isFavorite && (
+                {entry.is_favorite && (
                   <Star size={11} className="shrink-0 mt-0.5 text-amber-400 group-hover:hidden" fill="currentColor" />
                 )}
               </div>

@@ -14,7 +14,7 @@ if _app_env == "local":
 import app.config_store as config_store  # noqa: E402
 from app.cache import get_cache, load as load_cache  # noqa: E402
 from app.config import get_settings  # noqa: E402
-from app.database import dispose_engines, get_ml_db, init_engines  # noqa: E402
+from app.database import dispose_engines, get_ml_db, init_engines, init_portal_db  # noqa: E402
 from app.rag.retriever import load_bm25_from_store  # noqa: E402
 
 logging.basicConfig(
@@ -29,6 +29,7 @@ async def lifespan(app: FastAPI):
     cfg = get_settings()
     log.info("Starting ai-service [env=%s]", cfg.app_env)
     init_engines()
+    await init_portal_db()
     config_store.init()
 
     # Populate reference data cache from ml_db
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
     from app.routers.ai import router as ai_router
     from app.routers.assistant import router as assistant_router
     from app.routers.dashboard import router as dashboard_router
+    from app.routers.history import router as history_router
     from app.routers.rag import router as rag_router
     from app.routers.transactions import router as transactions_router
     app.include_router(dashboard_router)
@@ -76,6 +78,7 @@ def create_app() -> FastAPI:
     app.include_router(assistant_router)
     app.include_router(rag_router)
     app.include_router(admin_router)
+    app.include_router(history_router)
 
     @app.get("/health", tags=["ops"])
     async def health() -> dict:
