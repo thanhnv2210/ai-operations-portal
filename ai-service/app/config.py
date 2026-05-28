@@ -11,6 +11,8 @@ if _app_env == "local":
     load_dotenv(dotenv_path=f".env.{_app_env}", override=False)
     load_dotenv(dotenv_path=".env", override=False)
 
+import json
+
 from pydantic import Field  # noqa: E402  (must come after load_dotenv)
 from pydantic_settings import BaseSettings, SettingsConfigDict  # noqa: E402
 
@@ -62,10 +64,25 @@ class Settings(BaseSettings):
     )
 
     # --- CORS ---
-    cors_origins: list[str] = Field(
-        default=["http://localhost:3007"],
-        description="Allowed CORS origins",
+    # Stored as a raw string so pydantic-settings does not attempt json.loads()
+    # before we can sanitise the value. Platforms like Render may inject an empty
+    # string when a variable is declared but not given a value, which would crash
+    # the list[str] parser. Use the cors_origins_list property everywhere instead.
+    cors_origins: str = Field(
+        default='["http://localhost:3007"]',
+        description="Allowed CORS origins — JSON array string or comma-separated",
     )
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        val = self.cors_origins.strip()
+        if not val:
+            return ["*"]
+        try:
+            return json.loads(val)
+        except (json.JSONDecodeError, ValueError):
+            # accept comma-separated fallback: http://a.com,http://b.com
+            return [v.strip() for v in val.split(",") if v.strip()]
 
     @property
     def is_local(self) -> bool:
