@@ -63,11 +63,16 @@ async def query(question: str) -> dict:
         tags=[get_settings().app_env],
     ) as trace:
 
-        # Step 1: embed
+        # Step 1: embed (with BM25-only fallback if embedding service unavailable)
         with trace.span("embed_question") as span:
-            embeddings = await embed([question])
-            question_embedding = embeddings[0]
-            span.set_output({"embedding_dim": len(question_embedding)})
+            try:
+                embeddings = await embed([question])
+                question_embedding = embeddings[0]
+                span.set_output({"embedding_dim": len(question_embedding)})
+            except RuntimeError as exc:
+                log.warning("Embedding unavailable, falling back to BM25-only: %s", exc)
+                question_embedding = None
+                span.set_output({"embedding_dim": 0, "fallback": "bm25_only"})
 
         # Step 2: retrieve
         with trace.span("hybrid_retrieve", input={"question": question}) as span:

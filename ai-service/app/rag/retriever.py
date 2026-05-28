@@ -164,17 +164,31 @@ def _rrf_merge(
 
 async def retrieve(
     question: str,
-    question_embedding: list[float],
+    question_embedding: list[float] | None,
 ) -> tuple[list[dict], float]:
     """Hybrid retrieval.
+
+    When question_embedding is None (no embedding service available), falls back
+    to BM25-only and bypasses the vector grounding guard.
 
     Returns:
       (chunks, best_vector_score)
         chunks            — top-6 merged results (each has text, section_title, source_file, rrf_score, vector_score)
-        best_vector_score — highest vector similarity in the result set (used for grounding guard)
+        best_vector_score — highest vector similarity; 1.0 in BM25-only mode to bypass grounding guard
     """
-    vector_results = _vector_search(question_embedding)
     bm25_results = _bm25_search(question)
+
+    if question_embedding is None:
+        # No embedding service — BM25-only mode
+        if not bm25_results:
+            return [], 0.0
+        chunks = [
+            {**c, "rrf_score": round(1.0 / (rank + 1 + _RRF_K), 6), "vector_score": 0.0}
+            for rank, c in enumerate(bm25_results[:_FINAL_TOP_K])
+        ]
+        return chunks, 1.0  # score=1.0 bypasses the grounding guard
+
+    vector_results = _vector_search(question_embedding)
 
     if not vector_results and not bm25_results:
         return [], 0.0
