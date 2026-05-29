@@ -1,6 +1,6 @@
 # TODO — AI Operations Portal (Proposed)
 
-> Last updated: 2026-05-28 (Phase 2 + Phase 3 + Langfuse + Query History + Font Scaling implemented)
+> Last updated: 2026-05-29 (Phase 4 deployment complete — Render + Vercel + Neon DB + GitHub Actions deploy triggers; BM25 fallback + embedder enhanced)
 > **Learning goal:** Text-to-SQL (Phase 2) → RAG Pipeline (Phase 3). Both skills target AI Engineer / Solution Architect roles per the workspace roadmap.
 
 ## Status Overview
@@ -25,7 +25,7 @@
 | Font scaling — auto-detect from screen.width + manual override | Done |
 | Environment verification doc (`docs/environment-verification.md`) | Done |
 | workspace-local-ports.md updated (ports 3007, 8007, Langfuse 3020) | Done |
-| Deployment | Not started |
+| Deployment (Render + Vercel + Neon DB + deploy triggers) | Done |
 
 ---
 
@@ -201,20 +201,17 @@ Run frontend: `cd frontend && npm test`
 
 ## Phase 4 — Deployment & Portfolio Polish
 
-- [ ] Deploy frontend to Vercel; set `VITE_API_URL` env var
-- [ ] Deploy ai-service to Railway — `ai-service/Dockerfile`; inject all env vars
-- [ ] Cloud DB — confirm non-prod DB reachable from Railway, or seed a demo Neon DB with anonymized data
-- [ ] `README.md` — architecture diagram, Text-to-SQL demo (question → SQL → answer), RAG eval scores table
-- [ ] Add project card to `portfolio` — stack, live URL, RAG eval scores as concrete quality signal
+- [x] Deploy frontend to Vercel — live at `https://aiops.thanhnguyen.dev`; `VITE_API_URL` set to Render service
+- [x] Deploy ai-service to **Render** (not Railway) — live at `https://ai-operations-portal-api.onrender.com`; `ai-service/Dockerfile` + `render.yaml` Blueprint; see `docs/runbook-render-deployment.md`
+- [x] Cloud DB — **Neon** PostgreSQL; `ml_db` + `keycloak` schemas migrated; see `docs/runbook-neon-migration.md`
+- [x] `README.md` — live URLs section, Text-to-SQL demo, RAG eval scores table; architecture diagram (text)
+- [x] **Commit-message-based deploy triggers** — `.github/workflows/deploy.yml` complete; `VERCEL_DEPLOY_HOOK` + `RENDER_DEPLOY_HOOK` secrets set; usage: `[deploy api]` → Render, `[deploy ui]` → Vercel
 - [x] LLM observability — **Langfuse** tracing for Text-to-SQL + RAG; 5 spans per pipeline; env tags (`local`/`uat`); self-hosted on port 3020
+- [x] BM25 fallback — `app/rag/retriever.py` + `app/rag/chain.py` enhanced with graceful BM25 fallback when index unavailable
+- [x] RAG embedder — `app/rag/embedder.py` improved error messages and fallback path clarity
+- [x] Add project card to `portfolio` — stack, live URLs (`https://aiops.thanhnguyen.dev`), RAG eval scores; added to `data/profile.ts` in `/Users/ThanhNguyen/AI_WS/portfolio`
 - [ ] RAGAS full evaluation — faithfulness + answer_relevancy (requires OpenAI key; Ollama times out on 15 pairs)
 - [ ] Session isolation for query history — add `session_id` (browser cookie) to `query_history` table once multi-user support is needed
-- [ ] **Commit-message-based deploy triggers** — GitHub Actions workflow already at `.github/workflows/deploy.yml`; remaining steps:
-  1. Vercel → Project → Settings → Git → Deploy Hooks → create hook named `github-actions`, branch `master` → save URL as `VERCEL_DEPLOY_HOOK` secret
-  2. Render → Service → Settings → Build & Deploy → Deploy Hook → save URL as `RENDER_DEPLOY_HOOK` secret
-  3. GitHub repo → Settings → Secrets and variables → Actions → add both secrets
-  4. Disable auto-deploy on both platforms (Vercel: Git settings; Render: Auto-Deploy → No)
-  - Usage: `[deploy api]` in commit message → Render; `[deploy ui]` → Vercel; both tags → both
 
 ---
 
@@ -230,3 +227,4 @@ Run frontend: `cd frontend && npm test`
 | Hybrid search — BM25 + vector + RRF | Phase 3 — `retriever.py` (RRF k=60, threshold 0.40) | ✅ |
 | RAG evaluation (RAGAS faithfulness / context recall) | Phase 3 — `eval_rag.py` + 15-pair golden QA dataset | ✅ context_recall 0.865 (3 iterations); faithfulness partial (Ollama) |
 | LLM tracing / observability | Phase 4 — Langfuse; 5 spans per pipeline; env tags | ✅ |
+| Cloud deployment (Docker + PaaS) | Phase 4 — Render (Dockerfile + render.yaml), Vercel (SPA), Neon DB, GitHub Actions deploy hooks | ✅ |
