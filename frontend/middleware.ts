@@ -1,10 +1,10 @@
-import { NextResponse, type NextRequest } from '@vercel/edge'
+import { next } from '@vercel/edge'
 
 export const config = {
   matcher: '/(.*)',
 }
 
-export default function middleware(request: NextRequest) {
+export default function middleware(request: Request) {
   const authHeader = request.headers.get('Authorization')
 
   if (authHeader?.startsWith('Basic ')) {
@@ -18,11 +18,11 @@ export default function middleware(request: NextRequest) {
     const validPass = process.env.BASIC_AUTH_PASSWORD
 
     if (validUser && validPass && username === validUser && password === validPass) {
-      return NextResponse.next()
+      return next()
     }
   }
 
-  return new NextResponse('Unauthorized', {
+  return new Response('Unauthorized', {
     status: 401,
     headers: {
       'WWW-Authenticate': 'Basic realm="AI Operations Portal", charset="UTF-8"',
