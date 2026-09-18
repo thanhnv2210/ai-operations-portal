@@ -1,0 +1,57 @@
+-- Get the important table columns with a comment 
+SELECT
+    cols.ordinal_position,
+    cols.column_name,
+    cols.data_type,
+--    cols.is_nullable,
+--    cols.column_default,
+    pgd.description AS column_comment
+FROM information_schema.columns cols
+LEFT JOIN pg_catalog.pg_statio_all_tables st
+    ON st.schemaname = cols.table_schema
+    AND st.relname = cols.table_name
+LEFT JOIN pg_catalog.pg_description pgd
+    ON pgd.objoid = st.relid
+    AND pgd.objsubid = cols.ordinal_position
+WHERE cols.table_schema = 'remittance'
+    AND cols.table_name = 'transaction'
+    and pgd.description is not null
+ORDER BY cols.ordinal_position;
+
+
+
+"ordinal_position","column_name","data_type","column_comment"
+1,internal_transaction_id,bigint,autoin crement PK
+2,hub_id,bigint,"1: Telepin, 2: WU, 3:THUNES, 5: TRANGLO"
+3,payment_reference_id,character varying,Telepin PaymentSoNumber
+4,partner_transaction_id_check,character varying,Check Idempotency Key
+5,partner_transaction_id_submit,character varying,Submit Idempotency key
+8,service_id,bigint,ServiceId link to Remittance Service table
+9,partner_id,character varying,"DASH, HIAPP"
+12,status,character varying,Status life cycle follow State machine
+13,sender_msisdn,character varying,Sender Msisdn unmask data
+16,recipient_msisdn,character varying,Benificiary Msisdn unmask data
+17,recipient_currency,character varying,Destination Currency
+18,hub_name,character varying,"Telepin, WU, THUNES, TRANGLO"
+19,hub_exchange_rate,numeric,Whole sale rate
+21,remittance_amount,numeric,Remit Amount
+22,recipient_amount,numeric,Destination Amount
+23,retail_exchange_rate,numeric,Retail Rate
+26,retail_fee,numeric,Retail Fee
+29,created_date,timestamp without time zone,Created time
+30,updated_date,timestamp without time zone,Last Modified time
+31,version,integer,Support optimistic lock
+33,recipient_country,character varying,Destination Country
+34,sender_fullname,character varying,Sender Name unmask
+35,recipient_fullname,character varying,Benificiary name unmask
+36,service_name,character varying,Service Name link to Remittance Service table
+38,sender_account_id,character varying,Telepin AccountId
+39,recipient_id,character varying,Telepin BeneficiaryId
+42,hub_status_id,character varying,Partner statusID
+43,hub_status,character varying,Partner statusName
+46,refund_reference_id,character varying,Telepin RefundSoNumber
+54,currency_flag,smallint,"0: source mode, 1: destination mode"
+55,customer_key_in_amount,numeric,Amount customer keyin on screen
+56,fraud_status,character varying,Fraud check status when call third party
+57,external_service_id,integer,Telepin brandId to separate for consolidation report
+67,service_type,smallint,"1: BANK-ACCOUNT, 2: CASH-PICKUP 3: E-WALLET"

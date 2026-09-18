@@ -33,6 +33,7 @@ openai==1.82.0
 
 # Utilities
 python-multipart==0.0.20
+faker>=24.0.0
 
 # Testing
 pytest==8.3.5

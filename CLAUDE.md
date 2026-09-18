@@ -66,6 +66,71 @@ This portal reads from two existing production databases. Full schema in `docs/d
 4. **AI Insights Engine** — summaries, anomaly explanations, recommendations, trend observations
 5. **Admin Configuration** — AI prompts, thresholds, alert rules
 
+## Current Goal — Dummy Data Generation
+
+**Objective:** Generate realistic dummy data for both databases so the portal UI shows meaningful, representative data at `aiops.thanhnguyen.dev` — useful for demos and the ACS PCE Group 2 evidence bundle.
+
+### Why dummy data is needed
+The local databases (`localhost:54320`) have real production data that cannot be shared or shown in screenshots. The deployed app on Render/Neon currently has no data, so the dashboard shows empty states. We need a seed script that populates Neon with realistic (but fake) transactional data across all 4 hubs.
+
+### Seed script location
+`ai-service/scripts/seed_dummy_data.py` — to be created.
+
+Run against Neon (UAT DB):
+```bash
+cd ai-service
+source .venv/bin/activate
+# Set UAT DB URLs in env or pass as args
+python scripts/seed_dummy_data.py
+```
+
+### What to generate
+
+**ml_db — ml_schema (reference/lookup data)**
+- `country`: ~10 rows — SGD source + key destinations: Philippines (PHP), Indonesia (IDR), India (INR), Bangladesh (BDT), Vietnam (VND), China (CNY), Thailand (THB), Malaysia (MYR)
+- `mobile_operator`: ~20 rows — banks and wallets per destination country (e.g. BDO/GCash for PH, BCA/GoPay for ID, SBI/HDFC for IN)
+- `ml_fx_rates`: ~40 rows — one rate per service_id (SGD → each destination currency, realistic rates)
+
+**ml_db — service_management**
+- `external_partner`: 4 rows — TELEPIN (id=1), THUNES (id=2), TRANGLO (id=3), WU (id=4)
+- `remit_service`: ~30 rows — corridors per hub:
+  - TELEPIN: SG→PH bank, SG→PH wallet, SG→ID bank, SG→ID wallet, SG→VN bank
+  - THUNES: SG→IN bank, SG→BD bank, SG→TH bank, SG→CN wallet
+  - TRANGLO: SG→PH bank, SG→ID bank, SG→MY bank
+  - WU: SG→PH cash pickup, SG→BD cash pickup, SG→IN cash pickup
+  - Status mix: ~80% ACTIVATE, ~20% INACTIVE (matches real migration pattern)
+
+**keycloak — remittance**
+- `transaction`: ~500–1000 rows spanning last 90 days
+  - Realistic status distribution: ~75% COMPLETED, ~10% FAILED (mix of failure types), ~8% PROCESSING, ~7% REFUNDED/CANCELLED
+  - Hub distribution roughly: TELEPIN 40%, THUNES 25%, TRANGLO 20%, WU 15%
+  - Remittance amounts: SGD 50–500 range (realistic for SG remittance)
+  - Daily volume pattern: weekday peak, weekend dip
+  - Include realistic errors for FAILED rows: hub timeout, invalid account, insufficient funds
+- `transaction_aud`: 2–4 audit rows per transaction (status change trail)
+
+**keycloak — customer**
+- `beneficiary`: ~50 rows — fake names, phone numbers, bank accounts (masked/fake only)
+
+**keycloak — payment**
+- `ml_m_sof_payment`: ~1 row per completed transaction — PayNow/NETS_CLICK mix
+
+### Terminal status values (for COMPLETED transactions)
+```
+TRANSACTION_COMPLETED
+```
+### Key failed terminal statuses to seed
+```
+TRANSACTION_FAILED, SOF_PAY_FAILED, HUB_TIMEOUT, PAYMENT_RESERVED_FAILED
+```
+
+### Constraints
+- Use `asyncpg` or `psycopg2` — match existing `ai-service/` stack
+- All PII fields (sender_msisdn, sender_fullname, recipient_msisdn, recipient_fullname) must be **fake only** — use Faker library
+- Insert in FK order: reference tables first, then transactions
+- Script must be idempotent (skip or truncate+reseed)
+- Target DB: Neon (UAT) — connection strings from `.env.local` or CLI args
+
 ## Development Strategy
 
 - **Phase 1 (MVP):** `frontend/` + `backend/` + `database/` + `docker-compose.yml` only. Skip Kubernetes, RAG, embeddings, advanced monitoring.
