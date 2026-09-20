@@ -15,62 +15,69 @@ docker compose version  # expect: v2.x
 
 ---
 
-## 2. Databases (localhost:54320)
+## 2. Databases (Neon — `dash`)
 
-Both `ml_db` and `keycloak` must be reachable. These are read-only sources — the portal never writes to them.
+All schemas (ml_schema, service_management, remittance, customer, payment) now live in a single Neon database called **`dash`**. Both `ML_DB_URL` and `KEYCLOAK_DB_URL` in `.env.local` point to it.
 
 ```bash
-# ml_db — reference data, corridor config
-psql postgresql://admin:admin@localhost:54320/ml_db -c "SELECT 1 AS ok;"
+DASH_URL="postgresql://neondb_owner:<password>@ep-dry-cherry-aoh661hd.c-2.ap-southeast-1.aws.neon.tech/dash?sslmode=require"
 
-# keycloak DB — transactions, customers, payments
-psql postgresql://admin:admin@localhost:54320/keycloak -c "SELECT 1 AS ok;"
+psql "$DASH_URL" -c "SELECT 1 AS ok;"
 ```
-
-Expected output for both: a single row with `ok = 1`.
 
 Spot-check data presence:
 ```bash
-psql postgresql://admin:admin@localhost:54320/keycloak \
-  -c "SELECT COUNT(*) FROM remittance.transaction LIMIT 1;"
-
-psql postgresql://admin:admin@localhost:54320/ml_db \
-  -c "SELECT COUNT(*) FROM service_management.external_partner;"
+psql "$DASH_URL" -c "
+  SELECT 'country'          AS tbl, COUNT(*) FROM ml_schema.country
+  UNION ALL
+  SELECT 'external_partner',         COUNT(*) FROM service_management.external_partner
+  UNION ALL
+  SELECT 'remit_service',            COUNT(*) FROM service_management.remit_service
+  UNION ALL
+  SELECT 'transaction',              COUNT(*) FROM remittance.transaction;"
 ```
 
-**Troubleshooting:** If the DB is not reachable, start it with whatever local Docker/service manages it (not part of this repo).
+Expected: 250 countries, 4 partners, 112 services, 2000+ transactions.
+
+**Re-seed if empty:**
+```bash
+cd ai-service
+python scripts/seed_dummy_data.py \
+  --ml-db-url      "postgresql://..." \
+  --keycloak-db-url "postgresql://..."
+```
 
 ---
 
-## 3. AI Service (port 8007)
+## 3. AI Service (port 8000)
 
 ```bash
 # Health check
-curl -s http://localhost:8007/health | python3 -m json.tool
+curl -s http://localhost:8000/health | python3 -m json.tool
 
 # RAG status (should show chunk count > 0 if knowledge base is ingested)
-curl -s http://localhost:8007/api/v1/rag/status | python3 -m json.tool
+curl -s http://localhost:8000/api/v1/rag/status | python3 -m json.tool
 ```
 
 Expected `/health` response:
 ```json
-{"status": "ok"}
+{"status": "ok", "env": "local", "cache": {"loaded": true, "countries": 250, "services": 112, "partners": 4}}
 ```
 
 Expected `/api/v1/rag/status` response (after ingest):
 ```json
-{"status": "ready", "chunk_count": 51, ...}
+{"status": "ready", "chunk_count": 201, ...}
 ```
 
 If the service is not running, start it:
 ```bash
 cd ai-service
-source .venv/bin/activate
-uvicorn app.main:app --reload --port 8007
-# or: aiops-start
+.venv/bin/uvicorn app.main:app --reload --port 8000
 ```
 
-**Interactive API docs:** http://localhost:8007/docs
+**Note:** The venv must be built with **Python 3.12** (`python3.12 -m venv .venv`). Python 3.13+ breaks `pydantic-core` and `greenlet`.
+
+**Interactive API docs:** http://localhost:8000/docs
 
 ---
 
@@ -190,13 +197,12 @@ Run this one-liner to get a birds-eye view:
 
 ```bash
 echo "=== Ports ===" && \
-  for port in 8007 3007 3020 11434; do \
+  for port in 8000 3007 3020 11434; do \
     status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:$port 2>/dev/null); \
     echo "  :$port -> HTTP $status"; \
   done && \
-echo "=== DB ===" && \
-  psql postgresql://admin:admin@localhost:54320/ml_db -c "SELECT 1 AS ml_db_ok;" -t 2>/dev/null | head -1 && \
-  psql postgresql://admin:admin@localhost:54320/keycloak -c "SELECT 1 AS keycloak_ok;" -t 2>/dev/null | head -1 && \
+echo "=== Neon dash DB ===" && \
+  curl -s http://localhost:8000/health | python3 -m json.tool && \
 echo "=== Langfuse ===" && \
   docker compose -f infrastructure/docker-compose.langfuse.yml ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null
 ```
@@ -208,7 +214,8 @@ echo "=== Langfuse ===" && \
 | Port  | Service                        | Start command |
 |-------|--------------------------------|---------------|
 | 3007  | Frontend (React + Vite)        | `cd frontend && npm run dev` |
-| 8007  | AI Service (FastAPI)           | `uvicorn app.main:app --reload --port 8007` |
+| 8000  | AI Service (FastAPI)           | `cd ai-service && .venv/bin/uvicorn app.main:app --reload --port 8000` |
 | 3020  | Langfuse (LLM tracing)         | `docker compose -f infrastructure/docker-compose.langfuse.yml up -d` |
 | 11434 | Ollama (local embeddings)      | `ollama serve` |
-| 54320 | PostgreSQL (ml_db + keycloak)  | managed externally |
+
+> Local PostgreSQL (`localhost:54320`) is no longer used. All DB traffic goes to Neon (`dash`).

@@ -153,9 +153,9 @@ npm run lint
 ### Backend / AI Service
 ```bash
 cd ai-service
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload       # development server (port 8000)
+python3.12 -m venv .venv           # must use Python 3.12 — 3.13+ breaks pydantic-core
+.venv/bin/pip install -r requirements.txt
+.venv/bin/uvicorn app.main:app --reload --port 8000   # development server (port 8000)
 pytest                              # all tests
 pytest tests/path/test_file.py::test_name  # single test
 ```

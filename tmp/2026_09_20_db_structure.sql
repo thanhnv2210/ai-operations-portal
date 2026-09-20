@@ -1,0 +1,376 @@
+-- remittance."transaction" definition
+
+-- Drop table
+
+-- DROP TABLE remittance."transaction";
+
+CREATE TABLE remittance."transaction" (
+	internal_transaction_id bigserial NOT NULL,
+	hub_id int8 NULL,
+	payment_reference_id varchar(16) NULL,
+	partner_transaction_id_check varchar(48) NULL,
+	partner_transaction_id_submit varchar(48) NULL,
+	hub_transaction_id_check varchar(48) NULL,
+	hub_transaction_id_submit varchar(48) NULL,
+	service_id int8 NULL,
+	partner_id varchar(10) NULL,
+	recipient_pickup_code varchar(256) NULL,
+	hub_transaction_id varchar(16) NULL,
+	status varchar(50) NOT NULL,
+	sender_msisdn varchar(40) NULL,
+	sender_dob varchar(32) NULL,
+	sender_currency varchar(32) NULL,
+	recipient_msisdn varchar(40) NULL,
+	recipient_currency varchar(8) NULL,
+	hub_name varchar(255) NULL,
+	hub_exchange_rate numeric(24, 12) NULL,
+	hub_gross_fee numeric(20, 9) NULL,
+	remittance_amount numeric(20, 9) NULL,
+	recipient_amount numeric(20, 9) NULL,
+	retail_exchange_rate numeric(24, 12) NULL,
+	markup_rate numeric(6, 4) NULL,
+	markup_fee numeric(20, 9) NULL,
+	retail_fee numeric(20, 9) NULL,
+	retail_tax_amount numeric(20, 9) NULL,
+	salt varchar(50) NULL,
+	created_date timestamp NULL,
+	updated_date timestamp NULL,
+	"version" int4 NULL,
+	sender_country varchar(60) NULL,
+	recipient_country varchar(60) NULL,
+	sender_fullname varchar(356) NULL,
+	recipient_fullname varchar(356) NULL,
+	service_name varchar(255) NULL,
+	recipient_dob varchar(32) NULL,
+	sender_account_id varchar(16) NULL,
+	recipient_id varchar(16) NULL,
+	error_code varchar(10) NULL,
+	error_message varchar(500) NULL,
+	hub_status_id varchar(5) NULL,
+	hub_status varchar(100) NULL,
+	hub_sub_status_id varchar(100) NULL,
+	hub_sub_status varchar(100) NULL,
+	refund_reference_id varchar(16) NULL,
+	sender_country_of_residence varchar(50) NULL,
+	sender_nationality varchar(50) NULL,
+	hub_error_code varchar(10) NULL,
+	hub_error_message varchar(250) NULL,
+	recipient_nationality varchar(60) NULL,
+	source_of_fund_ref_id varchar(21) NULL,
+	hub_transaction_reference text NULL,
+	currency_flag int2 NULL,
+	customer_key_in_amount numeric(20, 9) NULL,
+	fraud_status varchar(30) NULL,
+	external_service_id int4 NULL,
+	device_id varchar(64) NULL,
+	card_id varchar(40) NULL,
+	payment_mode varchar(40) NULL,
+	reference_hub_name varchar(32) NULL,
+	proxy_refund_status varchar(20) NULL,
+	remit_purpose_id varchar(20) NULL,
+	transaction_digest varchar(100) NULL,
+	sender_email varchar(50) NULL,
+	is_notify_sms_sender bool DEFAULT false NOT NULL,
+	service_type int2 NULL,
+	CONSTRAINT transaction_pkey PRIMARY KEY (internal_transaction_id),
+	CONSTRAINT transaction_un UNIQUE (hub_id, payment_reference_id, partner_transaction_id_check)
+);
+CREATE INDEX partner_transaction_id_check_index ON remittance.transaction USING btree (partner_transaction_id_check);
+CREATE INDEX payment_reference_id_index ON remittance.transaction USING btree (payment_reference_id);
+
+
+
+-- remittance.transaction_aud definition
+
+-- Drop table
+
+-- DROP TABLE remittance.transaction_aud;
+
+CREATE TABLE remittance.transaction_aud (
+	id bigserial NOT NULL,
+	internal_transaction_id int8 NULL,
+	hub_id int8 NULL,
+	payment_reference_id varchar(16) NULL,
+	partner_transaction_id_check varchar(48) NULL,
+	partner_transaction_id_submit varchar(48) NULL,
+	hub_transaction_id_check varchar(48) NULL,
+	hub_transaction_id_submit varchar(48) NULL,
+	recipient_pickup_code varchar(256) NULL,
+	hub_transaction_id varchar(16) NULL,
+	status varchar(50) NULL,
+	created_date timestamp NULL,
+	"version" int4 NULL,
+	audit_date timestamp NULL,
+	hub_status_id varchar(5) NULL,
+	hub_status varchar(100) NULL,
+	hub_sub_status_id varchar(100) NULL,
+	hub_sub_status varchar(100) NULL,
+	error_code varchar(10) NULL,
+	error_message varchar(500) NULL,
+	refund_reference_id varchar(16) NULL,
+	sender_country_of_residence varchar(50) NULL,
+	sender_nationality varchar(50) NULL,
+	hub_error_code varchar(10) NULL,
+	hub_error_message varchar(250) NULL,
+	payment_method varchar(16) NULL,
+	source_of_fund_ref_id varchar(21) NULL,
+	external_service_id int4 NULL,
+	sender_account_id varchar(16) NULL,
+	recipient_id varchar(16) NULL,
+	salt varchar(50) NULL,
+	fraud_status varchar(30) NULL,
+	proxy_refund_status varchar(20) NULL,
+	CONSTRAINT transaction_aud_pkey PRIMARY KEY (id)
+);
+
+
+-- customer.beneficiary definition
+
+-- Drop table
+
+-- DROP TABLE customer.beneficiary;
+
+CREATE TABLE customer.beneficiary (
+	id bigserial NOT NULL,
+	bene_id int8 NULL,
+	sender_account_id int8 NULL,
+	sender_msisdn varchar(40) NULL,
+	bene_first_name varchar(156) NULL,
+	bene_last_name varchar(156) NULL,
+	bene_full_name varchar(312) NULL,
+	sender_first_name varchar(512) NULL,
+	sender_last_name varchar(512) NULL,
+	nationality int4 NULL,
+	dob varchar(100) NULL,
+	receiving_country int4 NULL,
+	mobile_operator int4 NULL,
+	benemsisdn varchar(40) NULL,
+	remit_purpose int4 NULL,
+	remit_purpose_note varchar(50) NULL,
+	cust_relationship varchar(50) NULL,
+	birth_place int4 NULL,
+	job int4 NULL,
+	other_job varchar(20) NULL,
+	gender varchar(20) NULL,
+	bene_address varchar(1024) NULL,
+	province_id int4 NULL,
+	city_id int4 NULL,
+	postal_code varchar(15) NULL,
+	issuer_id int4 NULL,
+	branch_code varchar(50) NULL,
+	bank_acc_type_flag bool DEFAULT false NULL,
+	bene_bank_acct_no varchar(50) NULL,
+	bene_mobile_operator_code int4 NULL,
+	remarks varchar(50) NULL,
+	status varchar(50) NULL,
+	status_remark varchar(100) NULL,
+	sys_flag varchar(15) NULL,
+	created_by varchar(50) NULL,
+	created_date timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
+	last_modified_by varchar(50) NULL,
+	last_modified_date timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
+	warning_message varchar(100) NULL,
+	old_bene_id int8 NULL,
+	salt varchar(64) NULL,
+	city_name varchar(100) NULL,
+	province_name varchar(100) NULL,
+	ml_operator_id int4 NULL,
+	wallet_account_number varchar(50) NULL,
+	issuer_alternative_id int4 NULL,
+	CONSTRAINT beneficiary_bene_id_sender_account_id_key UNIQUE (bene_id, sender_account_id),
+	CONSTRAINT beneficiary_pk PRIMARY KEY (id)
+);
+
+
+-- service_management.remit_service definition
+
+-- Drop table
+
+-- DROP TABLE service_management.remit_service;
+
+CREATE TABLE service_management.remit_service (
+	remit_service_id serial4 NOT NULL,
+	system_name varchar(255) NOT NULL,
+	local_currency varchar(10) NOT NULL,
+	foreign_currency varchar(10) NOT NULL,
+	external_service_id int4 NOT NULL,
+	mobile_operator_id int4 NOT NULL,
+	status varchar(10) NOT NULL,
+	local_country_id int4 NOT NULL,
+	local_country_name varchar(50) NOT NULL,
+	markup_fee numeric(10, 4) NOT NULL,
+	markup_rate_percentage numeric(6, 4) NOT NULL,
+	active_time_start time NULL,
+	active_time_end time NULL,
+	created_time timestamp NULL,
+	updated_time timestamp NULL,
+	creator varchar(200) NULL,
+	foreign_country_id int4 NOT NULL,
+	foreign_country_name varchar(50) NOT NULL,
+	time_check_required bool DEFAULT false NULL,
+	external_partner_id int4 NOT NULL,
+	service_name_display varchar(255) NOT NULL,
+	reference_hub int4 NULL,
+	service_type int4 NULL,
+	min_amount numeric(20, 9) NULL,
+	max_amount numeric(20, 9) NULL,
+	payment_method varchar(16) NULL,
+	beneficiary_validation_required bool DEFAULT false NULL,
+	beneficiary_auto_inclusion bool DEFAULT false NULL,
+	is_available bool DEFAULT true NULL,
+	CONSTRAINT remit_service_pkey PRIMARY KEY (remit_service_id)
+);
+
+
+-- service_management.remit_service foreign keys
+
+ALTER TABLE service_management.remit_service ADD CONSTRAINT remit_service_external_partner_id_fkey FOREIGN KEY (external_partner_id) REFERENCES service_management.external_partner(external_partner_id);
+ALTER TABLE service_management.remit_service ADD CONSTRAINT remit_service_reference_hub_fkey FOREIGN KEY (reference_hub) REFERENCES service_management.external_partner(external_partner_id);
+
+
+-- service_management.external_partner definition
+
+-- Drop table
+
+-- DROP TABLE service_management.external_partner;
+
+CREATE TABLE service_management.external_partner (
+	external_partner_id serial4 NOT NULL,
+	external_partner_name varchar(255) NOT NULL,
+	customer_names_input_required bool DEFAULT false NOT NULL,
+	CONSTRAINT external_partner_pkey PRIMARY KEY (external_partner_id)
+);
+
+
+-- ml_schema.country definition
+
+-- Drop table
+
+-- DROP TABLE ml_schema.country;
+
+CREATE TABLE ml_schema.country (
+	id serial4 NOT NULL,
+	country_id int4 NOT NULL,
+	country_name varchar(50) DEFAULT NULL::character varying NULL,
+	country_iso_code varchar(3) DEFAULT NULL::character varying NULL,
+	isd_code varchar(3) DEFAULT NULL::character varying NULL,
+	created_date timestamp NULL,
+	currency_iso varchar(5) NULL,
+	CONSTRAINT country_pkey PRIMARY KEY (id)
+);
+
+-- ml_schema.mobile_operator definition
+
+-- Drop table
+
+-- DROP TABLE ml_schema.mobile_operator;
+
+CREATE TABLE ml_schema.mobile_operator (
+	operator_id int4 NOT NULL,
+	operator_name varchar(128) NOT NULL,
+	iso_code varchar(3) DEFAULT NULL::character varying NULL,
+	service_message varchar(256) DEFAULT NULL::character varying NULL,
+	country_id int4 NOT NULL,
+	country_name varchar(25) NOT NULL,
+	operator_code varchar NULL,
+	created_date timestamp NULL,
+	exclusion_id int4 NULL,
+	operator_name_hiapp varchar(148) NULL,
+	service_message_hiapp varchar(256) NULL,
+	id serial4 NOT NULL,
+	default_issuer_id int4 NULL,
+	CONSTRAINT mobile_operator_pkey PRIMARY KEY (operator_id, country_id),
+	CONSTRAINT mobile_operator_un UNIQUE (id)
+);
+
+-- ml_schema.ml_fx_rates definition
+
+-- Drop table
+
+-- DROP TABLE ml_schema.ml_fx_rates;
+
+CREATE TABLE ml_schema.ml_fx_rates (
+	id serial4 NOT NULL,
+	brand_id varchar(20) DEFAULT NULL::character varying NULL,
+	to_currency varchar(20) DEFAULT NULL::character varying NULL,
+	from_currency varchar(20) DEFAULT NULL::character varying NULL,
+	fx_rate numeric(24, 12) NULL,
+	created_date timestamp NULL,
+	receiving_country_id varchar(20) NULL,
+	service_id int4 NULL,
+	CONSTRAINT ml_fx_rates_pkey PRIMARY KEY (id)
+);
+CREATE INDEX ml_indx_created_date_fx_rate ON ml_schema.ml_fx_rates USING btree (created_date);
+
+
+-- payment.ml_m_sof_payment definition
+
+-- Drop table
+
+-- DROP TABLE payment.ml_m_sof_payment;
+
+CREATE TABLE payment.ml_m_sof_payment (
+	payment_id bigserial NOT NULL,
+	internal_transaction_id int8 NOT NULL,
+	card_id varchar(40) NOT NULL,
+	payment_amount numeric(20, 9) NOT NULL,
+	request_datetime timestamp NOT NULL,
+	status varchar(32) NOT NULL,
+	remarks varchar(128) NULL,
+	refund_initiated_by varchar(64) NULL,
+	"version" int4 NULL,
+	created_date timestamp DEFAULT now() NOT NULL,
+	updated_date timestamp NULL,
+	CONSTRAINT ml_m_sof_payment_pkey PRIMARY KEY (payment_id),
+	CONSTRAINT ml_m_sof_payment_uq_iti UNIQUE (internal_transaction_id)
+);
+
+
+-- payment.overseas_payment_transactions definition
+
+-- Drop table
+
+-- DROP TABLE payment.overseas_payment_transactions;
+
+CREATE TABLE payment.overseas_payment_transactions (
+	internal_transaction_id bigserial NOT NULL,
+	partner_transaction_id varchar(48) NOT NULL,
+	payment_reference_id varchar(16) NULL,
+	refund_reference_id varchar(16) NULL,
+	external_partner_transaction_id varchar(16) NULL,
+	partner_id varchar(16) NULL,
+	sender_account_id varchar(16) NULL,
+	sender_msisdn varchar(40) NULL,
+	retail_amount numeric(10, 2) NULL,
+	bene_msisdn varchar(40) NULL,
+	bene_account_number varchar(100) NULL,
+	retail_unit varchar(3) NULL,
+	pin_code varchar(50) NULL,
+	pin_serial varchar(100) NULL,
+	product_id int4 NOT NULL,
+	product_name varchar(512) NULL,
+	product_type varchar(100) NULL,
+	operator_id int4 NULL,
+	operator_name varchar(100) NULL,
+	country_iso_code varchar(3) NULL,
+	country_name varchar(100) NULL,
+	status varchar(30) NOT NULL,
+	error_code varchar(10) NULL,
+	error_message varchar(100) NULL,
+	external_partner_status_id varchar(5) NULL,
+	external_partner_status varchar(100) NULL,
+	external_partner_sub_status_id varchar(5) NULL,
+	external_partner_sub_status varchar(100) NULL,
+	external_partner_error_code _text NULL,
+	external_partner_error_message _text NULL,
+	created_datetime timestamp NOT NULL,
+	updated_datetime timestamp NULL,
+	"version" int4 NULL,
+	service_name varchar(48) NULL,
+	transaction_fee numeric(10, 2) NULL,
+	discount numeric(10, 2) NULL,
+	CONSTRAINT overseas_payment_transactions_pkey PRIMARY KEY (internal_transaction_id),
+	CONSTRAINT payment_un UNIQUE (partner_id, partner_transaction_id, external_partner_transaction_id, service_name, transaction_fee, discount)
+);
+CREATE INDEX external_partner_transaction_id_index ON payment.overseas_payment_transactions USING btree (external_partner_transaction_id);
+CREATE INDEX partner_id_index ON payment.overseas_payment_transactions USING btree (partner_id, partner_transaction_id);

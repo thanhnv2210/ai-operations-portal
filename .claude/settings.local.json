@@ -143,7 +143,21 @@
       "Bash(.venv/bin/uvicorn app.main:app --reload --port 8000)",
       "Bash(/Users/XuanNguyen/AI_WS/ai-operations-portal/ai-service/.venv/bin/pip install:*)",
       "Bash(python3 -c \"import uvicorn; print\\(uvicorn.__file__\\)\")",
-      "Bash(/Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12 -c \"import uvicorn; print\\(uvicorn.__file__\\)\")"
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12 -c \"import uvicorn; print\\(uvicorn.__file__\\)\")",
+      "Bash(pkill -f \"uvicorn app.main:app\")",
+      "Bash(pkill -f \"vite\")",
+      "Bash(pkill -f \"npm run dev\")",
+      "Bash(lsof -ti:8007,3007)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(python -c \"import asyncpg, faker; print\\(''deps ok''\\)\")",
+      "Bash(python scripts/seed_dummy_data.py --ml-db-url \"postgresql://neondb_owner:npg_mHYp3zO5FBvb@ep-dry-cherry-aoh661hd.c-2.ap-southeast-1.aws.neon.tech/dash?sslmode=require\" --keycloak-db-url \"postgresql://neondb_owner:npg_mHYp3zO5FBvb@ep-dry-cherry-aoh661hd.c-2.ap-southeast-1.aws.neon.tech/dash?sslmode=require\")",
+      "Skill(claude-in-chrome)",
+      "Bash(python3.12 --version)",
+      "Bash(lsof -ti:3007,3008,3009,8000)",
+      "Bash(xargs kill:*)",
+      "Bash(python3 -c \"import sys,json; routes=json.load\\(sys.stdin\\)[''''paths'''']; [print\\(r\\) for r in list\\(routes.keys\\(\\)\\)[:20]]\")",
+      "Bash(ls:*)"
     ]
   }
 }
